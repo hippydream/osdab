@@ -1,0 +1,25 @@
+******************** IMPORTANT ********************
+
+These example icons [1] have been taken from the Oxygen
+icon theme, which is dual licensed. You may copy it 
+under the Creative Common Attribution-ShareAlike 3.0 
+License or the GNU Library General Public License. 
+
+Image previews of Oxygen are released under the 
+Creative Commons Attribution-NonCommercial-NoDerivs 2.5 
+License.
+
+Work on the Oxygen theme is still in progress and these
+examples do in no way represent the final product.
+Their only purpose is to act as a test for the QtSvgzPlugin
+library.
+
+Website: http://www.oxygen-icons.org
+
+Oxygen "O" logo copyright © 2005 by David Vignoni.
+KDE and K Desktop Environment are trademarks of KDE e.V.
+All other trademarks are property of their respective owners. 
+
+[1] with the exception for "icon.svgz"
+
+******************** ********* ********************

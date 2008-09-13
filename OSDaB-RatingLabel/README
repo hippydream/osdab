@@ -1,0 +1,38 @@
+The RatingLabel related files are 
+Copyright (C) 2007 Angius Fabrizio (blue_death@users.sourceforge.net)
+
+You may use, distribute and copy the files under the terms of
+GNU General Public License version 2 (see the file LICENSE.GPL for details)
+
+-------------------------------------------------------------------------
+
+Website: http://osdab.sourceforge.net/
+SourceForge.net project page: https://sourceforge.net/projects/osdab/
+
+**************** ******* ******************************************************
+
+detailed description
+--------------------
+A label used to represent some sort of "rating" using a horizzontally repeated pixmap.
+Weird description, I know.. the screenshot below should be better :)
+
+history
+-------
+2007-03-01 - Minor layout related bug fixes; added hovered(int) signal; new example app.
+2007-02-16 - Major update: the widget allows direct mouse interaction now.
+2006-06-09 - Minor changes (documentation and binary compatibility).
+2006-08-01 - First public release. 
+
+features
+--------
+Complete mouse interaction (except for removing the rating).
+
+requirements
+------------
+Qt version 4.0.x or later
+
+
+**************** ******* ******************************************************
+BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
+**************** ******* ******************************************************
+

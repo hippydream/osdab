@@ -1,0 +1,87 @@
+The XmlPreferences, Base64 and XmlWriter related files are 
+Copyright (C) 2007 Angius Fabrizio (blue_death@users.sourceforge.net)
+
+You may use, distribute and copy the files under the terms of
+GNU General Public License version 2 (see the file LICENSE.GPL for details)
+
+****
+
+The GNU libiconv related files are
+Copyright (C) 1999-2003 Free Software Foundation, Inc.
+
+You may use, distribute and copy the files under the terms of
+GNU General Public License version 2 (see the file LICENSE.GPL for details)
+
+****
+
+The libxml2 related files are
+Copyright (C) 1998-2003 Daniel Veillard. All Rights Reserved.
+
+You may use, distribute and copy the files under the terms of
+MIT license (see the file libxml/COPYING for details)
+
+-------------------------------------------------------------------------
+
+Website: http://osdab.sourceforge.net/
+SourceForge.net project page: https://sourceforge.net/projects/osdab/
+
+**************** ******* ******************************************************
+
+detailed description
+--------------------
+The XMLPreferences class allows to store application settings in plain text
+files using XML format. Stored settings may be read using the XMLPreferences
+class or other XML parsers. The class supports many Qt data types and allows
+settings to be organized in sections.
+
+The following data types are currently supported:
+ - bool
+ - int
+ - qint64
+ - QString
+ - QStringList
+ - QBitArray
+ - QByteArray
+ - QRect
+ - QPoint
+ - QSize
+
+The following data types are NOT available if the QT_CORE_ONLY macro has been defined:
+ - QColor
+
+history
+-------
+2007-02-15 - Updated XmlWriter files to latest version.
+2007-01-28 - Major changes:
+ - The class is a singleton now
+ - Better error handling and notification
+ - Product version and info handling
+ - Massive internal refactoring
+ - Some API changes (sorry, but I hope the new ones are better ;)
+ - Better handling of the default section
+ - Lots of performance issues solved 
+2006-06-18 - Bug fix: updated calls to Base64 class to reflect new Base64 API (thanks to Alexander Saal)
+2006-06-09 - Minor improvements and API changes; updated to use latest XMLWriter
+2006-01-09 - First public release
+
+features
+--------
+Store settings in plain text files using XML format.
+Supports many Qt data types.
+Supports encoding of binary data as plain text.
+May be compiled without linking the QtGui library. 
+
+no known issues
+---------------
+
+requirements
+------------
+Qt 4.0.x (QtCore and optional QtGui module)
+libxml2 library
+OSDaB XmlWriter (latest version please!)
+OSDaB Base64 (latest version please!) 
+
+
+**************** ******* ******************************************************
+BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
+**************** ******* ******************************************************

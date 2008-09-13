@@ -1,0 +1,44 @@
+The SHA1Hash related files are 
+Copyright (C) 2007 Angius Fabrizio (blue_death@users.sourceforge.net)
+
+You may use, distribute and copy the files under the terms of
+GNU General Public License version 2 (see the file LICENSE.GPL for details)
+
+-------------------------------------------------------------------------
+
+Website: http://osdab.sourceforge.net/
+SourceForge.net project page: https://sourceforge.net/projects/osdab/
+
+**************** ******* ******************************************************
+
+detailed description
+--------------------
+A small class implementing the SHA1 hashing algorithm. 
+
+SHA (Secure Hash Algorithm) is a cryptographically safe function developed by NIST and NSA in 1992. It fulfills all the requirements imposed for one-way hashing functions and it generates very different images for similar sequences. This code is based on the 100% free public domain implementation by Dominik Reichl. 
+
+NO WARRANTY is given for this code. Use it at your own risk. It should always compute correct SHA1 digests, but no security-related tests have been made.
+
+history
+-------
+2006-06-09 - Minor changes (documentation and binary compatibility). 
+2005-10-02 - Added some methods to hash byte arrays. 
+2005-09-30 - First public release.
+
+features
+--------
+Qt interface for quickly computing the SHA1 digest of some file or buffer. 
+Endianness-aware (see the SHA1_LITTLE_ENDIAN #define in the header file) 
+
+no known issues
+---------------
+
+requirements
+------------
+Qt version 4.0.x or later
+
+
+**************** ******* ******************************************************
+BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
+**************** ******* ******************************************************
+

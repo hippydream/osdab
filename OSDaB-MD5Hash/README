@@ -1,0 +1,42 @@
+The MD5Hash related files are 
+Copyright (C) 2007 Angius Fabrizio (blue_death@users.sourceforge.net)
+
+You may use, distribute and copy the files under the terms of
+GNU General Public License version 2 (see the file LICENSE.GPL for details)
+
+-------------------------------------------------------------------------
+
+Website: http://osdab.sourceforge.net/
+SourceForge.net project page: https://sourceforge.net/projects/osdab/
+
+**************** ******* ******************************************************
+
+detailed description
+--------------------
+A small class implementing Ron Rivest's MD5 hashing algorithm. 
+
+The class is based on the code written by Colin Plumb in 1993 (my understanding is that no copyright is claimed and that this code is in the public domain).
+
+history
+-------
+2006-06-09 - Minor changes (documentation and binary compatibility)
+2005-10-02 - Added some methods to hash byte arrays
+2005-09-03 - First public release
+
+features
+--------
+Qt interface for quickly computing the MD5 digest of some file or buffer. 
+
+known issues
+---------------
+There may be problems with Big Endian byte order (as on SPARC and Motorola CPUs)
+
+requirements
+------------
+Qt version 4.0.x or later
+
+
+**************** ******* ******************************************************
+BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
+**************** ******* ******************************************************
+

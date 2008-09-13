@@ -1,0 +1,7 @@
+<!DOCTYPE RCC><RCC version="1.0">
+	<qresource>
+		<file>img/unrated.png</file>
+		<file>img/rated.png</file>
+		<file>img/hovered.png</file>
+	</qresource>
+</RCC>

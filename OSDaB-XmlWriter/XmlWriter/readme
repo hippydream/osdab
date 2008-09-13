@@ -1,0 +1,44 @@
+The XmlWriter related files are 
+Copyright (C) 2007 Angius Fabrizio (blue_death@users.sourceforge.net)
+
+You may use, distribute and copy the files under the terms of
+GNU General Public License version 2 (see the file LICENSE.GPL for details)
+
+-------------------------------------------------------------------------
+
+Website: http://osdab.sourceforge.net/
+SourceForge.net project page: https://sourceforge.net/projects/osdab/
+
+**************** ******* ******************************************************
+
+detailed description
+--------------------
+The Qt XML Module allows to easily read and parse XML documents, but it does not 
+allow writing of XML. If you don't want to use 3rd party libraries like libxml2, 
+this class may do it. Creating basic XML documents is really easy.
+
+history
+-------
+2007-02-15 - GCC build issues solved.
+2007-01-28 - Minor API changes.
+2005-06-09 - Minor API changes and better binary compatibility.
+2005-09-30 - First public release.
+
+features
+--------
+User-defined text encoding 
+Automatic and customizable indentation 
+Automatic replacement of illegal XML characters
+
+known issues
+---------------
+This version does not detect errors while writing the document!
+
+requirements
+------------
+Qt version 4.0.x or later
+
+
+**************** ******* ******************************************************
+BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
+**************** ******* ******************************************************

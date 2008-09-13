@@ -1,0 +1,41 @@
+The QtSvgzPlugin related files are 
+Copyright (C) 2007 Angius Fabrizio (blue_death@users.sourceforge.net)
+
+You may use, distribute and copy the files under the terms of
+GNU General Public License version 2 (see the file LICENSE.GPL for details)
+
+-------------------------------------------------------------------------
+
+Website: http://osdab.sourceforge.net/
+SourceForge.net project page: https://sourceforge.net/projects/osdab/
+
+**************** ******* ******************************************************
+
+detailed description
+--------------------
+QtSvgzPlugin is a plugin that add support for gzip compressed SVG files to Qt's icon engine.
+
+The class is based on the QSvgIconEnginePlugin in Qt 4.2 and requires the QtSvg module. GZip decompression is achieved using zlib.
+
+history
+-------
+2007-12-19 - First public release
+
+features
+--------
+Transparently adds support for svgz files to QIcon.
+Supports Qt's Resource System
+
+known issues
+---------------
+Possible issue: the QDataStream based read and write methods have bot been updated to use GZip.
+
+requirements
+------------
+Qt version 4.2.x or later
+
+
+**************** ******* ******************************************************
+BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
+**************** ******* ******************************************************
+

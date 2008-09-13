@@ -1,0 +1,7 @@
+<!DOCTYPE RCC><RCC version="1.0">
+	<qresource>
+		<file>images/document-open.svgz</file>
+		<file>images/application-exit.svgz</file>
+		<file>images/icon.svgz</file>
+	</qresource>
+</RCC>

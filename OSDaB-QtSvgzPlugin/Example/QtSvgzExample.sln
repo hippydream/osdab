@@ -1,0 +1,38 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "QtSvgzExample", "QtSvgzExample.vcproj", "{44C4861D-3769-304A-BFB6-5F8A44FEB74F}"
+	GlobalSection(Qt) = preSolution
+		Integration = True
+	EndGlobalSection
+	ProjectSection(ProjectDependencies) = postProject
+		{A6ABBD61-32AD-3F26-8E15-8EE4B98CF7B2} = {A6ABBD61-32AD-3F26-8E15-8EE4B98CF7B2}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "QtSvgzPlugin", "..\Plugin\QtSvgzPlugin.vcproj", "{A6ABBD61-32AD-3F26-8E15-8EE4B98CF7B2}"
+	GlobalSection(Qt) = preSolution
+		Integration = True
+	EndGlobalSection
+EndProject
+Global
+	GlobalSection(Qt) = preSolution
+		Integration = True
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{44C4861D-3769-304A-BFB6-5F8A44FEB74F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{44C4861D-3769-304A-BFB6-5F8A44FEB74F}.Debug|Win32.Build.0 = Debug|Win32
+		{44C4861D-3769-304A-BFB6-5F8A44FEB74F}.Release|Win32.ActiveCfg = Release|Win32
+		{44C4861D-3769-304A-BFB6-5F8A44FEB74F}.Release|Win32.Build.0 = Release|Win32
+		{A6ABBD61-32AD-3F26-8E15-8EE4B98CF7B2}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A6ABBD61-32AD-3F26-8E15-8EE4B98CF7B2}.Debug|Win32.Build.0 = Debug|Win32
+		{A6ABBD61-32AD-3F26-8E15-8EE4B98CF7B2}.Release|Win32.ActiveCfg = Release|Win32
+		{A6ABBD61-32AD-3F26-8E15-8EE4B98CF7B2}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

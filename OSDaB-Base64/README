@@ -1,0 +1,43 @@
+The Base64 related files are 
+Copyright (C) 2007 Angius Fabrizio (blue_death@users.sourceforge.net)
+
+You may use, distribute and copy the files under the terms of
+GNU General Public License version 2 (see the file LICENSE.GPL for details)
+
+-------------------------------------------------------------------------
+
+Website: http://osdab.sourceforge.net/
+SourceForge.net project page: https://sourceforge.net/projects/osdab/
+
+**************** ******* ******************************************************
+
+detailed description
+--------------------
+A small class implementing base 64 (RFC 2045) encoding and decoding. 
+
+Code is based on the original GPLed work by Dawit Alemayehu and Rik Hemsley (KDE development team). Many changes have been made and the routines should be slightly faster now.
+
+history
+-------
+2006-06-09 - Minor changes (documentation and binary compatibility)
+2005-09-30 - First public release
+
+features
+--------
+Qt interface for quickly base 64 encoding or decoding of byte arrays. 
+Supports both QByteArray and QBitArray. 
+Code should be endianness-aware (no known endianness-related known issues so far ;).
+
+requirements
+------------
+Qt version 4.0.x or later
+
+notes
+-----
+The "Test files" subdirectory contains a base64 encoded file (encoded.txt) - the 
+original file is decoded.png
+
+**************** ******* ******************************************************
+BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
+**************** ******* ******************************************************
+
