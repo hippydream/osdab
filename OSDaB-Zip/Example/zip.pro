@@ -1,6 +1,6 @@
 TEMPLATE = app
 INCLUDEPATH += . ../
-QT -= qtgui
+QT -= gui
 CONFIG += console debug
 TARGET = zip
 
