@@ -33,6 +33,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <stdlib.h>
 
 void invalidCMD();
 bool decompress(const QString& file, const QString& out, const QString& pwd);
