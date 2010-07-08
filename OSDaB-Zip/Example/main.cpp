@@ -4,7 +4,7 @@
 **
 ** Test routine for the Zip and UnZip classed.
 **
-** Copyright (C) 2007 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2010 Angius Fabrizio. All rights reserved.
 **
 ** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
 **
@@ -50,7 +50,7 @@ int main(int argc, char** argv)
 		cout << "Compression: zip [-p PWD] ZIPFILE DIRECTORY" << endl;
 		cout << "List files: zip -l [-p PWD] ZIPFILE" << endl;
 		cout << "Decompression: zip -d [-p PWD] ZIPFILE OUTPUT_DIR" << endl << endl;
-		cout << "(C) 2007 Angius Fabrizio\nLicensed under the terms of the GNU GPL Version 2 or later" << endl;
+		cout << "(C) 2007-2010 Angius Fabrizio\nLicensed under the terms of the GNU GPL Version 2 or later" << endl;
 		return -1;
 	}
 

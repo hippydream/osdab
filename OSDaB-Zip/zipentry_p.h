@@ -1,6 +1,6 @@
 /****************************************************************************
 ** Filename: ZipEntryP.h
-** Last updated [dd/mm/yyyy]: 28/01/2007
+** Last updated [dd/mm/yyyy]: 08/07/2010
 **
 ** Wrapper for a ZIP local header.
 **
@@ -8,7 +8,7 @@
 ** (mainly Info-Zip and Gilles Vollant's minizip).
 ** Compression and decompression actually uses the zlib library.
 **
-** Copyright (C) 2007-2008 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2010 Angius Fabrizio. All rights reserved.
 **
 ** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
 **
@@ -69,7 +69,7 @@ public:
 	quint32 szUncomp;			// Uncompressed file size
 	QString comment;			// File comment
 
-	bool lhEntryChecked;		// Is true if the local header record for this entry has been parsed
+	mutable bool lhEntryChecked;		// Is true if the local header record for this entry has been parsed
 
 	inline bool isEncrypted() const { return gpFlag[0] & 0x01; }
 	inline bool hasDataDescriptor() const { return gpFlag[0] & 0x08; }

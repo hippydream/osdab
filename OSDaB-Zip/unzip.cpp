@@ -1,6 +1,6 @@
 /****************************************************************************
 ** Filename: unzip.cpp
-** Last updated [dd/mm/yyyy]: 07/09/2008
+** Last updated [dd/mm/yyyy]: 08/07/2010
 **
 ** pkzip 2.0 decompression.
 **
@@ -8,7 +8,7 @@
 ** (mainly Info-Zip and Gilles Vollant's minizip).
 ** Compression and decompression actually uses the zlib library.
 **
-** Copyright (C) 2007-2008 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2010 Angius Fabrizio. All rights reserved.
 **
 ** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
 **
@@ -967,7 +967,7 @@ void UnzipPrivate::closeArchive()
 }
 
 //! \internal
-UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, ZipEntryP& entry, const QDir& dir, UnZip::ExtractionOptions options)
+UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP& entry, const QDir& dir, UnZip::ExtractionOptions options)
 {
 	QString name(path);
 	QString dirname;
@@ -1038,14 +1038,14 @@ UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, ZipEntryP& entry
 }
 
 //! \internal
-UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, ZipEntryP& entry, QIODevice* dev, UnZip::ExtractionOptions options)
+UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP& entry, QIODevice* dev, UnZip::ExtractionOptions options)
 {
 	Q_UNUSED(options);
 	Q_ASSERT(dev != 0);
 
 	if (!entry.lhEntryChecked)
 	{
-		UnZip::ErrorCode ec = parseLocalHeaderRecord(path, entry);
+		UnZip::ErrorCode ec = parseLocalHeaderRecord(path, const_cast<ZipEntryP&>(entry));
 		entry.lhEntryChecked = true;
 
 		if (ec != UnZip::Ok)
@@ -1058,6 +1058,9 @@ UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, ZipEntryP& entry
 	// Encryption keys
 	quint32 keys[3];
 
+    // Fix: Fabrizio Angius @ 08/07/2010: don't override szComp in the entry when the file is encrypted.
+    // Thanks to Serge Kolokolkin for the bug report.
+    quint32 szComp = entry.szComp;
 	if (entry.isEncrypted())
 	{
 		UnZip::ErrorCode e = testPassword(keys, path, entry);
@@ -1066,10 +1069,10 @@ UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, ZipEntryP& entry
 			qDebug() << QString("Unable to decrypt %1").arg(path);
 			return e;
 		}//! Encryption header size
-		entry.szComp -= UNZIP_LOCAL_ENC_HEADER_SIZE; // remove encryption header size
+		szComp -= UNZIP_LOCAL_ENC_HEADER_SIZE; // remove encryption header size
 	}
 
-	if (entry.szComp == 0)
+	if (szComp == 0)
 	{
 		if (entry.crc != 0)
 			return UnZip::Corrupted;
@@ -1077,8 +1080,8 @@ UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, ZipEntryP& entry
 		return UnZip::Ok;
 	}
 
-	uInt rep = entry.szComp / UNZIP_READ_BUFFER;
-	uInt rem = entry.szComp % UNZIP_READ_BUFFER;
+	uInt rep = szComp / UNZIP_READ_BUFFER;
+	uInt rem = szComp % UNZIP_READ_BUFFER;
 	uInt cur = 0;
 
 	// extract data
@@ -1102,7 +1105,7 @@ UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, ZipEntryP& entry
 			cur++;
 			tot += read;
 
-			if (tot == entry.szComp)
+			if (tot == szComp)
 				break;
 		}
 

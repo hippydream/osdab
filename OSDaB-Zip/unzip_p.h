@@ -1,6 +1,6 @@
 /****************************************************************************
 ** Filename: unzip_p.h
-** Last updated [dd/mm/yyyy]: 28/01/2007
+** Last updated [dd/mm/yyyy]: 08/07/2010
 **
 ** pkzip 2.0 decompression.
 **
@@ -8,7 +8,7 @@
 ** (mainly Info-Zip and Gilles Vollant's minizip).
 ** Compression and decompression actually uses the zlib library.
 **
-** Copyright (C) 2007-2008 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2010 Angius Fabrizio. All rights reserved.
 **
 ** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
 **
@@ -89,8 +89,8 @@ public:
 
 	void closeArchive();
 
-	UnZip::ErrorCode extractFile(const QString& path, ZipEntryP& entry, const QDir& dir, UnZip::ExtractionOptions options);
-	UnZip::ErrorCode extractFile(const QString& path, ZipEntryP& entry, QIODevice* device, UnZip::ExtractionOptions options);
+	UnZip::ErrorCode extractFile(const QString& path, const ZipEntryP& entry, const QDir& dir, UnZip::ExtractionOptions options);
+	UnZip::ErrorCode extractFile(const QString& path, const ZipEntryP& entry, QIODevice* device, UnZip::ExtractionOptions options);
 
 	UnZip::ErrorCode testPassword(quint32* keys, const QString& file, const ZipEntryP& header);
 	bool testKeys(const ZipEntryP& header, quint32* keys);
