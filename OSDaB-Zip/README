@@ -27,7 +27,8 @@ Please refer to the example application's main.cpp file or to the class comments
 
 history
 -------
-2008-09-97 - Bug fix: end of central directory was sometimes not being found when the archive had a comment.
+2010-07-08 - Bug fix: extractFile() was permanently updating the compressed file size in the zip entry in case of an encrypted entry. Thanks to Serge Kolokolkin for finding and reporting the exact bug.
+2008-09-07 - Bug fix: end of central directory was sometimes not being found when the archive had a comment.
 2007-02-01 - New IgnorePaths compression option and two more "addDirectoryContents()" convenience methods to use this option.
 2007-01-28 - Major changes:
  - Bug fix: there was a big problem with directory names.
