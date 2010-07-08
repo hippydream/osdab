@@ -571,7 +571,7 @@ UnZip::ErrorCode UnzipPrivate::openArchive(QIODevice* dev)
 	file name (variable size)
 	extra field (variable size)
 */
-UnZip::ErrorCode UnzipPrivate::parseLocalHeaderRecord(const QString& path, ZipEntryP& entry)
+UnZip::ErrorCode UnzipPrivate::parseLocalHeaderRecord(const QString& path, const ZipEntryP& entry)
 {
 	if (!device->seek(entry.lhOffset))
 		return UnZip::SeekFailed;
@@ -1045,7 +1045,7 @@ UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP&
 
 	if (!entry.lhEntryChecked)
 	{
-		UnZip::ErrorCode ec = parseLocalHeaderRecord(path, const_cast<ZipEntryP&>(entry));
+		UnZip::ErrorCode ec = parseLocalHeaderRecord(path, entry);
 		entry.lhEntryChecked = true;
 
 		if (ec != UnZip::Ok)

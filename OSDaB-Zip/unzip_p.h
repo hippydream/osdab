@@ -85,7 +85,7 @@ public:
 
 	UnZip::ErrorCode seekToCentralDirectory();
 	UnZip::ErrorCode parseCentralDirectoryRecord();
-	UnZip::ErrorCode parseLocalHeaderRecord(const QString& path, ZipEntryP& entry);
+	UnZip::ErrorCode parseLocalHeaderRecord(const QString& path, const ZipEntryP& entry);
 
 	void closeArchive();
 

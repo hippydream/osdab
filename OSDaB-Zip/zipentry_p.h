@@ -59,7 +59,7 @@ public:
 	}
 
 	quint32 lhOffset;			// Offset of the local header record for this entry
-	quint32 dataOffset;			// Offset of the file data for this entry
+	mutable quint32 dataOffset;	// Offset of the file data for this entry
 	unsigned char gpFlag[2];	// General purpose flag
 	quint16 compMethod;			// Compression method
 	unsigned char modTime[2];	// Last modified time
