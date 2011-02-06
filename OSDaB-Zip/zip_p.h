@@ -8,7 +8,7 @@
 ** (mainly Info-Zip and Gilles Vollant's minizip).
 ** Compression and decompression actually uses the zlib library.
 **
-** Copyright (C) 2007-2010 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
 ** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
 **
@@ -42,8 +42,8 @@
 #include "zip.h"
 #include "zipentry_p.h"
 
-#include <QtGlobal>
-#include <QFileInfo>
+#include <QtCore/QFileInfo>
+#include <QtCore/QtGlobal>
 
 /*!
 	zLib authors suggest using larger buffers (128K or 256K) for (de)compression (especially for inflate())

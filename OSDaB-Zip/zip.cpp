@@ -8,7 +8,7 @@
 ** (mainly Info-Zip and Gilles Vollant's minizip).
 ** Compression and decompression actually uses the zlib library.
 **
-** Copyright (C) 2007-2010 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
 ** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
 **
@@ -32,16 +32,16 @@
 // we only use this to seed the random number generator
 #include <time.h>
 
-#include <QMap>
-#include <QString>
-#include <QStringList>
-#include <QDir>
-#include <QFile>
-#include <QDateTime>
-#include <QCoreApplication>
+#include <QtCore/QCoreApplication>
+#include <QtCore/QDateTime>
+#include <QtCore/QDir>
+#include <QtCore/QFile>
+#include <QtCore/QMap>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
 
 // You can remove this #include if you replace the qDebug() statements.
-#include <QtDebug>
+#include <QtCore/QtDebug>
 
 //! Local header size (including signature, excluding variable length fields)
 #define ZIP_LOCAL_HEADER_SIZE 30
@@ -215,9 +215,8 @@
 /*!
 	Creates a new Zip file compressor.
 */
-Zip::Zip()
+Zip::Zip() : d(new ZipPrivate)
 {
-	d = new ZipPrivate;
 }
 
 /*!
@@ -595,7 +594,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 	if (encrypt)
 		h->gpFlag[0] |= 9;
 
-	QDateTime dt = file.lastModified();
+    QDateTime dt = file.lastModified();
 	QDate d = dt.date();
 	h->modDate[1] = ((d.year() - 1980) << 1) & 254;
 	h->modDate[1] |= ((d.month() >> 3) & 1);

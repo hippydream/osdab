@@ -8,7 +8,7 @@
 ** (mainly Info-Zip and Gilles Vollant's minizip).
 ** Compression and decompression actually uses the zlib library.
 **
-** Copyright (C) 2007-2010 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
 ** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
 **
@@ -28,8 +28,10 @@
 #ifndef OSDAB_ZIP__H
 #define OSDAB_ZIP__H
 
-#include <QtGlobal>
-#include <QMap>
+#include "zipglobal.h"
+
+#include <QtCore/QMap>
+#include <QtCore/QtGlobal>
 
 #include <zlib/zlib.h>
 
@@ -41,8 +43,7 @@ class QDir;
 class QStringList;
 class QString;
 
-
-class Zip
+class OSDAB_ZIP_EXPORT Zip
 {
 public:
 	enum ErrorCode

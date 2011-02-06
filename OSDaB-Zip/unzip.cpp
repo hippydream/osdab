@@ -8,7 +8,7 @@
 ** (mainly Info-Zip and Gilles Vollant's minizip).
 ** Compression and decompression actually uses the zlib library.
 **
-** Copyright (C) 2007-2010 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
 ** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
 **
@@ -29,14 +29,14 @@
 #include "unzip_p.h"
 #include "zipentry_p.h"
 
-#include <QString>
-#include <QStringList>
-#include <QDir>
-#include <QFile>
-#include <QCoreApplication>
+#include <QtCore/QCoreApplication>
+#include <QtCore/QDir>
+#include <QtCore/QFile>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
 
 // You can remove this #include if you replace the qDebug() statements.
-#include <QtDebug>
+#include <QtCore/QtDebug>
 
 /*!
 	\class UnZip unzip.h
@@ -162,9 +162,8 @@
 /*!
 	Creates a new Zip file decompressor.
 */
-UnZip::UnZip()
+UnZip::UnZip() : d(new UnzipPrivate)
 {
-	d = new UnzipPrivate;
 }
 
 /*!

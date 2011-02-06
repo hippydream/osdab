@@ -8,7 +8,7 @@
 ** (mainly Info-Zip and Gilles Vollant's minizip).
 ** Compression and decompression actually uses the zlib library.
 **
-** Copyright (C) 2007-2010 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
 ** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
 **
@@ -39,8 +39,8 @@
 #ifndef OSDAB_ZIPENTRY_P__H
 #define OSDAB_ZIPENTRY_P__H
 
-#include <QtGlobal>
-#include <QString>
+#include <QtCore/QString>
+#include <QtCore/QtGlobal>
 
 class ZipEntryP
 {
