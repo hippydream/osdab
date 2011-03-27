@@ -1,6 +1,6 @@
 /****************************************************************************
 ** Filename: unzip.h
-** Last updated [dd/mm/yyyy]: 28/01/2007
+** Last updated [dd/mm/yyyy]: 27/03/2011
 **
 ** pkzip 2.0 decompression.
 **
@@ -10,7 +10,7 @@
 **
 ** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
-** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
+** This file is part of the OSDaB project (http://osdab.42cows.org/).
 **
 ** This file may be distributed and/or modified under the terms of the
 ** GNU General Public License version 2 as published by the Free Software
@@ -36,12 +36,15 @@
 
 #include <zlib/zlib.h>
 
-class UnzipPrivate;
-class QIODevice;
-class QFile;
 class QDir;
-class QStringList;
+class QFile;
+class QIODevice;
 class QString;
+class QStringList;
+
+OSDAB_BEGIN_NAMESPACE(Zip)
+
+class UnzipPrivate;
 
 class OSDAB_ZIP_EXPORT UnZip
 {
@@ -141,5 +144,7 @@ private:
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(UnZip::ExtractionOptions)
+
+OSDAB_END_NAMESPACE
 
 #endif // OSDAB_UNZIP__H

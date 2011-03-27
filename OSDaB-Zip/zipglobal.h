@@ -1,6 +1,6 @@
 /****************************************************************************
 ** Filename: zipglobal.h
-** Last updated [dd/mm/yyyy]: 06/02/2011
+** Last updated [dd/mm/yyyy]: 27/03/2011
 **
 ** pkzip 2.0 file compression.
 **
@@ -10,7 +10,7 @@
 **
 ** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
-** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
+** This file is part of the OSDaB project (http://osdab.42cows.org/).
 **
 ** This file may be distributed and/or modified under the terms of the
 ** GNU General Public License version 2 as published by the Free Software
@@ -28,6 +28,7 @@
 #ifndef OSDAB_ZIPGLOBAL__H
 #define OSDAB_ZIPGLOBAL__H
 
+#include <QtCore/QDateTime>
 #include <QtCore/QtGlobal>
 
 /* If you want to build the OSDaB Zip code as
@@ -46,5 +47,31 @@
 #   define OSDAB_ZIP_EXPORT Q_DECL_IMPORT
 # endif
 #endif
+
+#ifdef OSDAB_NAMESPACE
+#define OSDAB_BEGIN_NAMESPACE(ModuleName) namespace Osdab { namespace ModuleName {
+#else
+#define OSDAB_BEGIN_NAMESPACE(ModuleName)
+#endif
+
+#ifdef OSDAB_NAMESPACE
+#define OSDAB_END_NAMESPACE } }
+#else
+#define OSDAB_END_NAMESPACE
+#endif
+
+#ifndef OSDAB_NAMESPACE
+#define OSDAB_ZIP_MANGLE(x) zip_##x
+#else
+#define OSDAB_ZIP_MANGLE(x) x
+#endif
+
+OSDAB_BEGIN_NAMESPACE(Zip)
+
+OSDAB_ZIP_EXPORT int OSDAB_ZIP_MANGLE(currentUtcOffset)();
+OSDAB_ZIP_EXPORT QDateTime OSDAB_ZIP_MANGLE(fromFileTimestamp)(const QDateTime& dateTime);
+OSDAB_ZIP_EXPORT QDateTime OSDAB_ZIP_MANGLE(toFileTimestamp)(const QDateTime& dateTime);
+
+OSDAB_END_NAMESPACE
 
 #endif // OSDAB_ZIPGLOBAL__H

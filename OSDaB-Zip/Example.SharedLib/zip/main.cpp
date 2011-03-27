@@ -41,6 +41,10 @@ bool listFiles(const QString& file, const QString& pwd);
 
 using namespace std;
 
+#ifdef OSDAB_NAMESPACE
+using namespace Osdab::Zip;
+#endif
+
 int main(int argc, char** argv)
 {
 	if (argc < 3)
@@ -148,7 +152,6 @@ void invalidCMD()
 
 bool decompress(const QString& file, const QString& out, const QString& pwd)
 {
-
 	if (!QFile::exists(file))
 	{
 		cout << "File does not exist." << endl << endl;

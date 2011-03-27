@@ -10,7 +10,7 @@
 **
 ** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
-** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
+** This file is part of the OSDaB project (http://osdab.42cows.org/).
 **
 ** This file may be distributed and/or modified under the terms of the
 ** GNU General Public License version 2 as published by the Free Software
@@ -207,300 +207,22 @@
 	\value Zip::AutoFull Use both CPU and MIME type detection.
 */
 
-
-/************************************************************************
- Public interface
-*************************************************************************/
-
-/*!
-	Creates a new Zip file compressor.
-*/
-Zip::Zip() : d(new ZipPrivate)
-{
-}
-
-/*!
-	Closes any open archive and releases used resources.
-*/
-Zip::~Zip()
-{
-	closeArchive();
-	delete d;
-}
-
-/*!
-	Returns true if there is an open archive.
-*/
-bool Zip::isOpen() const
-{
-	return d->device != 0;
-}
-
-/*!
-	Sets the password to be used for the next files being added!
-	Files added before calling this method will use the previously
-	set password (if any).
-	Closing the archive won't clear the password!
-*/
-void Zip::setPassword(const QString& pwd)
-{
-	d->password = pwd;
-}
-
-//! Convenience method, clears the current password.
-void Zip::clearPassword()
-{
-	d->password.clear();
-}
-
-//! Returns the currently used password.
-QString Zip::password() const
-{
-	return d->password;
-}
-
-/*!
-	Attempts to create a new Zip archive. If \p overwrite is true and the file
-	already exist it will be overwritten.
-	Any open archive will be closed.
- */
-Zip::ErrorCode Zip::createArchive(const QString& filename, bool overwrite)
-{
-	QFile* file = new QFile(filename);
-
-	if (file->exists() && !overwrite) {
-		delete file;
-		return Zip::FileExists;
-	}
-
-	if (!file->open(QIODevice::WriteOnly)) {
-		delete file;
-		return Zip::OpenFailed;
-	}
-
-	Zip::ErrorCode ec = createArchive(file);
-	if (ec != Zip::Ok) {
-		file->remove();
-	}
-
-	return ec;
-}
-
-/*!
-	Attempts to create a new Zip archive. If there is another open archive this will be closed.
-	\warning The class takes ownership of the device!
- */
-Zip::ErrorCode Zip::createArchive(QIODevice* device)
-{
-	if (device == 0)
-	{
-		qDebug() << "Invalid device.";
-		return Zip::OpenFailed;
-	}
-
-	return d->createArchive(device);
-}
-
-/*!
-	Returns the current archive comment.
-*/
-QString Zip::archiveComment() const
-{
-	return d->comment;
-}
-
-/*!
-	Sets the comment for this archive. Note: createArchive() should have been
-	called before.
-*/
-void Zip::setArchiveComment(const QString& comment)
-{
-	if (d->device != 0)
-		d->comment = comment;
-}
-
-/*!
-	Convenience method, same as calling
-	Zip::addDirectory(const QString&,const QString&,CompressionLevel)
-	with an empty \p root parameter (or with the parent directory of \p path if the
-	AbsolutePaths options is set).
-
-	The ExtractionOptions are checked in the order they are defined in the zip.h heaser file.
-	This means that the last one overwrites the previous one (if some conflict occurs), i.e.
-	Zip::IgnorePaths | Zip::AbsolutePaths would be interpreted as Zip::IgnorePaths.
- */
-Zip::ErrorCode Zip::addDirectory(const QString& path, CompressionOptions options, CompressionLevel level)
-{
-	return addDirectory(path, QString(), options, level);
-}
-
-/*!
-	Convenience method, same as calling Zip::addDirectory(const QString&,const QString&,CompressionOptions,CompressionLevel)
-	with the Zip::RelativePaths flag as compression option.
- */
-Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root, CompressionLevel level)
-{
-	return addDirectory(path, root, Zip::RelativePaths, level);
-}
-
-/*!
-	Convenience method, same as calling Zip::addDirectory(const QString&,const QString&,CompressionOptions,CompressionLevel)
-	with the Zip::IgnorePaths flag as compression option and an empty \p root parameter.
-*/
-Zip::ErrorCode Zip::addDirectoryContents(const QString& path, CompressionLevel level)
-{
-	return addDirectory(path, QString(), IgnorePaths, level);
-}
-
-/*!
-	Convenience method, same as calling Zip::addDirectory(const QString&,const QString&,CompressionOptions,CompressionLevel)
-	with the Zip::IgnorePaths flag as compression option.
-*/
-Zip::ErrorCode Zip::addDirectoryContents(const QString& path, const QString& root, CompressionLevel level)
-{
-	return addDirectory(path, root, IgnorePaths, level);
-}
-
-/*!
-	Recursively adds files contained in \p dir to the archive, using \p root as name for the root folder.
-	Stops adding files if some error occurs.
-
-	The ExtractionOptions are checked in the order they are defined in the zip.h heaser file.
-	This means that the last one overwrites the previous one (if some conflict occurs), i.e.
-	Zip::IgnorePaths | Zip::AbsolutePaths would be interpreted as Zip::IgnorePaths.
-
-	The \p root parameter is ignored with the Zip::IgnorePaths parameter and used as path prefix (a trailing /
-	is always added as directory separator!) otherwise (even with Zip::AbsolutePaths set!).
-*/
-Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root, CompressionOptions options, CompressionLevel level)
-{
-	// qDebug() << QString("addDir(path=%1, root=%2)").arg(path, root);
-
-	// Bad boy didn't call createArchive() yet :)
-	if (d->device == 0)
-		return Zip::NoOpenArchive;
-
-	QDir dir(path);
-	if (!dir.exists())
-		return Zip::FileNotFound;
-
-	// Remove any trailing separator
-	QString actualRoot = root.trimmed();
-
-	// Preserve Unix root
-	if (actualRoot != "/")
-	{
-		while (actualRoot.endsWith("/") || actualRoot.endsWith("\\"))
-			actualRoot.truncate(actualRoot.length() - 1);
-	}
-
-	// QDir::cleanPath() fixes some issues with QDir::dirName()
-	QFileInfo current(QDir::cleanPath(path));
-
-	if (!actualRoot.isEmpty() && actualRoot != "/")
-		actualRoot.append("/");
-
-	/* This part is quite confusing and needs some test or check */
-	/* An attempt to compress the / root directory evtl. using a root prefix should be a good test */
-	if (options.testFlag(AbsolutePaths) && !options.testFlag(IgnorePaths))
-	{
-		QString absolutePath = d->extractRoot(path);
-		if (!absolutePath.isEmpty() && absolutePath != "/")
-			absolutePath.append("/");
-		actualRoot.append(absolutePath);
-	}
-
-	if (!options.testFlag(IgnorePaths))
-	{
-		actualRoot = actualRoot.append(QDir(current.absoluteFilePath()).dirName());
-		actualRoot.append("/");
-	}
-
-	// actualRoot now contains the path of the file relative to the zip archive
-	// with a trailing /
-
-	QFileInfoList list = dir.entryInfoList(
-		QDir::Files |
-		QDir::Dirs |
-		QDir::NoDotAndDotDot |
-		QDir::NoSymLinks);
-
-	ErrorCode ec = Zip::Ok;
-	bool filesAdded = false;
-
-	CompressionOptions recursionOptions;
-	if (options.testFlag(IgnorePaths))
-		recursionOptions |= IgnorePaths;
-	else recursionOptions |= RelativePaths;
-
-	for (int i = 0; i < list.size() && ec == Zip::Ok; ++i)
-	{
-		QFileInfo info = list.at(i);
-
-		if (info.isDir())
-		{
-			// Recursion :)
-			ec = addDirectory(info.absoluteFilePath(), actualRoot, recursionOptions, level);
-		}
-		else
-		{
-			ec = d->createEntry(info, actualRoot, level);
-			filesAdded = true;
-		}
-	}
-
-
-	// We need an explicit record for this dir
-	// Non-empty directories don't need it because they have a path component in the filename
-	if (!filesAdded && !options.testFlag(IgnorePaths))
-		ec = d->createEntry(current, actualRoot, level);
-
-	return ec;
-}
-
-/*!
-	Closes the archive and writes any pending data.
-*/
-Zip::ErrorCode Zip::closeArchive()
-{
-	Zip::ErrorCode ec = d->closeArchive();
-	d->reset();
-	return ec;
-}
-
-/*!
-	Returns a locale translated error string for a given error code.
-*/
-QString Zip::formatError(Zip::ErrorCode c) const
-{
-	switch (c)
-	{
-	case Ok: return QCoreApplication::translate("Zip", "ZIP operation completed successfully."); break;
-	case ZlibInit: return QCoreApplication::translate("Zip", "Failed to initialize or load zlib library."); break;
-	case ZlibError: return QCoreApplication::translate("Zip", "zlib library error."); break;
-	case OpenFailed: return QCoreApplication::translate("Zip", "Unable to create or open file."); break;
-	case NoOpenArchive: return QCoreApplication::translate("Zip", "No archive has been created yet."); break;
-	case FileNotFound: return QCoreApplication::translate("Zip", "File or directory does not exist."); break;
-	case ReadFailed: return QCoreApplication::translate("Zip", "File read error."); break;
-	case WriteFailed: return QCoreApplication::translate("Zip", "File write error."); break;
-	case SeekFailed: return QCoreApplication::translate("Zip", "File seek error."); break;
-	default: ;
-	}
-
-	return QCoreApplication::translate("Zip", "Unknown error.");
-}
-
+OSDAB_BEGIN_NAMESPACE(Zip)
 
 /************************************************************************
  Private interface
 *************************************************************************/
 
 //! \internal
-ZipPrivate::ZipPrivate()
+ZipPrivate::ZipPrivate() :
+    headers(0),
+    device(0),
+    file(0),
+    uBuffer(0),
+    crcTable(0),
+    comment(),
+    password()
 {
-	headers = 0;
-	device = 0;
-
 	// keep an unsigned pointer so we avoid to over bloat the code with casts
 	uBuffer = (unsigned char*) buffer1;
 	crcTable = (quint32*) get_crc_table();
@@ -515,15 +237,16 @@ ZipPrivate::~ZipPrivate()
 //! \internal
 Zip::ErrorCode ZipPrivate::createArchive(QIODevice* dev)
 {
-	Q_ASSERT(dev != 0);
+	Q_ASSERT(dev);
 
-	if (device != 0)
+	if (device)
 		closeArchive();
 
 	device = dev;
+    if (device != file)
+        connect(device, SIGNAL(destroyed(QObject*)), this, SLOT(deviceDestroyed(QObject*)));
 
-	if (!device->isOpen())
-	{
+	if (!device->isOpen()) {
 		if (!device->open(QIODevice::ReadOnly)) {
 			delete device;
 			device = 0;
@@ -534,6 +257,13 @@ Zip::ErrorCode ZipPrivate::createArchive(QIODevice* dev)
 
 	headers = new QMap<QString,ZipEntryP*>;
 	return Zip::Ok;
+}
+
+//! \internal
+void ZipPrivate::deviceDestroyed(QObject*)
+{
+    qDebug("Unexpected device destruction detected.");
+    do_closeArchive();
 }
 
 //! \internal Writes a new entry in the zip file.
@@ -551,14 +281,13 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 	QString entryName = root;
 
 	// Directory entry
-	if (dirOnly)
+    if (dirOnly) {
 		level = Zip::Store;
-	else
-	{
+    } else {
 		entryName.append(file.fileName());
 
 		QString ext = file.completeSuffix().toLower();
-		isPNGFile = ext == "png";
+		isPNGFile = ext == QLatin1String("png");
 
 		if (file.size() < ZIP_COMPRESSION_THRESHOLD)
 			level = Zip::Store;
@@ -595,6 +324,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 		h->gpFlag[0] |= 9;
 
     QDateTime dt = file.lastModified();
+    dt = OSDAB_ZIP_MANGLE(fromFileTimestamp)(dt);
 	QDate d = dt.date();
 	h->modDate[1] = ((d.year() - 1980) << 1) & 254;
 	h->modDate[1] |= ((d.month() >> 3) & 1);
@@ -662,15 +392,13 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 	h->lhOffset = device->pos();
 	quint32 crcOffset = h->lhOffset + ZIP_LH_OFF_CRC;
 
-	if (device->write(buffer1, ZIP_LOCAL_HEADER_SIZE) != ZIP_LOCAL_HEADER_SIZE)
-	{
+	if (device->write(buffer1, ZIP_LOCAL_HEADER_SIZE) != ZIP_LOCAL_HEADER_SIZE) {
 		delete h;
 		return Zip::WriteFailed;
 	}
 
 	// Write out filename
-	if (device->write(entryNameBytes) != sz)
-	{
+	if (device->write(entryNameBytes) != sz) {
 		delete h;
 		return Zip::WriteFailed;
 	}
@@ -678,8 +406,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 	// Encryption keys
 	quint32 keys[3] = { 0, 0, 0 };
 
-	if (encrypt)
-	{
+	if (encrypt) {
 		// **** encryption header ****
 
 		// XOR with PI to ensure better random numbers
@@ -688,8 +415,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 		int randByte;
 
 		initKeys(keys);
-		for (int i=0; i<10; ++i)
-		{
+		for (int i = 0; i < 10; ++i) {
 			randByte = (rand() >> 7) & 0xff;
 			buffer1[i] = decryptByte(keys[2]) ^ randByte;
 			updateKeys(keys, randByte);
@@ -697,8 +423,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 
 		// Encrypt encryption header
 		initKeys(keys);
-		for (int i=0; i<10; ++i)
-		{
+		for (int i = 0; i < 10; ++i) {
 			randByte = decryptByte(keys[2]);
 			updateKeys(keys, buffer1[i]);
 			buffer1[i] ^= randByte;
@@ -715,8 +440,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 		buffer1[11] ^= randByte;
 
 		// Write out encryption header
-		if (device->write(buffer1, ZIP_LOCAL_ENC_HEADER_SIZE) != ZIP_LOCAL_ENC_HEADER_SIZE)
-		{
+		if (device->write(buffer1, ZIP_LOCAL_ENC_HEADER_SIZE) != ZIP_LOCAL_ENC_HEADER_SIZE) {
 			delete h;
 			return Zip::WriteFailed;
 		}
@@ -725,11 +449,9 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 	qint64 written = 0;
 	quint32 crc = crc32(0L, Z_NULL, 0);
 
-	if (!dirOnly)
-	{
+	if (!dirOnly) {
 		QFile actualFile(file.absoluteFilePath());
-		if (!actualFile.open(QIODevice::ReadOnly))
-		{
+		if (!actualFile.open(QIODevice::ReadOnly)) {
 			qDebug() << QString("An error occurred while opening %1").arg(file.absoluteFilePath());
 			return Zip::OpenFailed;
 		}
@@ -739,25 +461,18 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 		qint64 totRead = 0;
 		qint64 toRead = actualFile.size();
 
-		if (level == Zip::Store)
-		{
-			while ( (read = actualFile.read(buffer1, ZIP_READ_BUFFER)) > 0 )
-			{
+		if (level == Zip::Store) {
+			while ( (read = actualFile.read(buffer1, ZIP_READ_BUFFER)) > 0 ) {
 				crc = crc32(crc, uBuffer, read);
-
-				if (password != 0)
+				if (encrypt)
 					encryptBytes(keys, buffer1, read);
-
-				if ( (written = device->write(buffer1, read)) != read )
-				{
+				if ( (written = device->write(buffer1, read)) != read ) {
 					actualFile.close();
 					delete h;
 					return Zip::WriteFailed;
 				}
 			}
-		}
-		else
-		{
+		} else {
 			z_stream zstr;
 
 			// Initialize zalloc, zfree and opaque before calling the init function
@@ -777,8 +492,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 					isPNGFile ? Z_RLE : Z_DEFAULT_STRATEGY,
 					ZLIB_VERSION,
 					sizeof(z_stream)
-				)) != Z_OK )
-			{
+				)) != Z_OK ) {
 				actualFile.close();
 				qDebug() << "Could not initialize zlib for compression";
 				delete h;
@@ -786,18 +500,15 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 			}
 
 			qint64 compressed;
-
 			int flush = Z_NO_FLUSH;
-
-			do
-			{
+			do {
 				read = actualFile.read(buffer1, ZIP_READ_BUFFER);
 				totRead += read;
 
-				if (read == 0)
+				if (!read)
 					break;
-				if (read < 0)
-				{
+
+				if (read < 0) {
 					actualFile.close();
 					deflateEnd(&zstr);
 					qDebug() << QString("Error while reading %1").arg(file.absoluteFilePath());
@@ -816,8 +527,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 
 				// Run deflate() on input until output buffer not full
 				// finish compression if all of source has been read in
-        		do
-        		{
+        		do {
 					zstr.next_out = (Bytef*) buffer2;
 					zstr.avail_out = ZIP_READ_BUFFER;
 
@@ -828,11 +538,10 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 					// Write compressed data to file and empty buffer
 					compressed = ZIP_READ_BUFFER - zstr.avail_out;
 
-					if (password != 0)
+					if (encrypt)
 						encryptBytes(keys, buffer2, compressed);
 
-					if (device->write(buffer2, compressed) != compressed)
-					{
+					if (device->write(buffer2, compressed) != compressed) {
 						deflateEnd(&zstr);
 						actualFile.close();
 						qDebug() << QString("Error while writing %1").arg(file.absoluteFilePath());
@@ -863,8 +572,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 	quint32 current = device->pos();
 
 	// Update crc and compressed size in local header
-	if (!device->seek(crcOffset))
-	{
+	if (!device->seek(crcOffset)) {
 		delete h;
 		return Zip::SeekFailed;
 	}
@@ -874,21 +582,18 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 
 	setULong(h->crc, buffer1, 0);
 	setULong(h->szComp, buffer1, 4);
-	if ( device->write(buffer1, 8) != 8)
-	{
+	if ( device->write(buffer1, 8) != 8) {
 		delete h;
 		return Zip::WriteFailed;
 	}
 
 	// Seek to end of entry
-	if (!device->seek(current))
-	{
+	if (!device->seek(current)) {
 		delete h;
 		return Zip::SeekFailed;
 	}
 
-	if ((h->gpFlag[0] & 8) == 8)
-	{
+	if ((h->gpFlag[0] & 8) == 8) {
 		// Write data descriptor
 
 		// Signature: PK\7\8
@@ -906,8 +611,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 		// Uncompressed size
 		setULong(h->szUncomp, buffer1, ZIP_DD_OFF_USIZE);
 
-		if (device->write(buffer1, ZIP_DD_SIZE_WS) != ZIP_DD_SIZE_WS)
-		{
+		if (device->write(buffer1, ZIP_DD_SIZE_WS) != ZIP_DD_SIZE_WS) {
 			delete h;
 			return Zip::WriteFailed;
 		}
@@ -946,7 +650,7 @@ void ZipPrivate::initKeys(quint32* keys) const
 	int sz = pwdBytes.size();
 	const char* ascii = pwdBytes.data();
 
-	for (int i=0; i<sz; ++i)
+	for (int i = 0; i < sz; ++i)
 		updateKeys(keys, (int)ascii[i]);
 }
 
@@ -964,8 +668,7 @@ void ZipPrivate::encryptBytes(quint32* keys, char* buffer, qint64 read)
 {
 	char t;
 
-	for (int i=0; i<(int)read; ++i)
-	{
+	for (int i = 0; i < (int)read; ++i) {
 		t = buffer[i];
 		buffer[i] ^= decryptByte(keys[2]);
 		updateKeys(keys, t);
@@ -976,30 +679,30 @@ void ZipPrivate::encryptBytes(quint32* keys, char* buffer, qint64 read)
 Zip::CompressionLevel ZipPrivate::detectCompressionByMime(const QString& ext)
 {
 	// files really hard to compress
-	if ((ext == "png") ||
-		(ext == "jpg") ||
-		(ext == "jpeg") ||
-		(ext == "mp3") ||
-		(ext == "ogg") ||
-		(ext == "ogm") ||
-		(ext == "avi") ||
-		(ext == "mov") ||
-		(ext == "rm") ||
-		(ext == "ra") ||
-		(ext == "zip") ||
-		(ext == "rar") ||
-		(ext == "bz2") ||
-		(ext == "gz") ||
-		(ext == "7z") ||
-		(ext == "z") ||
-		(ext == "jar")
+	if ((ext == QLatin1String("png")) ||
+		(ext == QLatin1String("jpg")) ||
+		(ext == QLatin1String("jpeg")) ||
+		(ext == QLatin1String("mp3")) ||
+		(ext == QLatin1String("ogg")) ||
+		(ext == QLatin1String("ogm")) ||
+		(ext == QLatin1String("avi")) ||
+		(ext == QLatin1String("mov")) ||
+		(ext == QLatin1String("rm")) ||
+		(ext == QLatin1String("ra")) ||
+		(ext == QLatin1String("zip")) ||
+		(ext == QLatin1String("rar")) ||
+		(ext == QLatin1String("bz2")) ||
+		(ext == QLatin1String("gz")) ||
+		(ext == QLatin1String("7z")) ||
+		(ext == QLatin1String("z")) ||
+		(ext == QLatin1String("jar"))
 	) return Zip::Store;
 
 	// files slow and hard to compress
-	if ((ext == "exe") ||
-		(ext == "bin") ||
-		(ext == "rpm") ||
-		(ext == "deb")
+	if ((ext == QLatin1String("exe")) ||
+		(ext == QLatin1String("bin")) ||
+		(ext == QLatin1String("rpm")) ||
+		(ext == QLatin1String("deb"))
 	) return Zip::Deflate2;
 
 	return Zip::Deflate9;
@@ -1010,119 +713,148 @@ Zip::CompressionLevel ZipPrivate::detectCompressionByMime(const QString& ext)
 */
 Zip::ErrorCode ZipPrivate::closeArchive()
 {
+    if (!device) {
+        Q_ASSERT(!file);
+        return Zip::Ok;
+    }
+
+    if (device != file)
+        disconnect(device, 0, this, 0);
+
+    return do_closeArchive();
+}
+
+//! \internal
+Zip::ErrorCode ZipPrivate::do_closeArchive()
+{
 	// Close current archive by writing out central directory
 	// and free up resources
 
-	if (device == 0)
+	if (!device && !headers)
 		return Zip::Ok;
 
-	if (headers == 0)
-		return Zip::Ok;
-
-	const ZipEntryP* h;
-
-	unsigned int sz;
 	quint32 szCentralDir = 0;
-	quint32 offCentralDir = device->pos();
+    quint32 offCentralDir = device->pos();
+	Zip::ErrorCode c = Zip::Ok;
 
-	for (QMap<QString,ZipEntryP*>::ConstIterator itr = headers->constBegin(); itr != headers->constEnd(); ++itr)
-	{
-		h = itr.value();
+    if (headers && device) {
+        for (QMap<QString,ZipEntryP*>::ConstIterator itr = headers->constBegin(); 
+            itr != headers->constEnd(); ++itr) {
+            const QString fileName = itr.key();
+            const ZipEntryP* h = itr.value();
+            c = writeEntry(fileName, h, szCentralDir);
+        }
+    }
 
-		// signature
-		buffer1[0] = 'P';
-		buffer1[1] = 'K';
-		buffer1[2] = 0x01;
-		buffer1[3] = 0x02;
+    if (c == Zip::Ok)
+        c = writeCentralDir(offCentralDir, szCentralDir);
 
-		// version made by  (currently only MS-DOS/FAT - no symlinks or other stuff supported)
-		buffer1[ZIP_CD_OFF_MADEBY] = buffer1[ZIP_CD_OFF_MADEBY + 1] = 0;
+    if (c != Zip::Ok) {
+        if (file) {
+            file->close();
+            if (!file->remove()) {
+                qDebug() << "Failed to delete corrupt archive.";
+            }
+        }
+    }
 
-		// version needed to extract
-		buffer1[ZIP_CD_OFF_VERSION] = ZIP_VERSION;
-		buffer1[ZIP_CD_OFF_VERSION + 1] = 0;
+	return c;
+}
 
-		// general purpose flag
-		buffer1[ZIP_CD_OFF_GPFLAG] = h->gpFlag[0];
-		buffer1[ZIP_CD_OFF_GPFLAG + 1] = h->gpFlag[1];
+//! \internal
+Zip::ErrorCode ZipPrivate::writeEntry(const QString& fileName, const ZipEntryP* h, quint32& szCentralDir)
+{
+    unsigned int sz;
 
-		// compression method
-		buffer1[ZIP_CD_OFF_CMET] = h->compMethod & 0xFF;
-		buffer1[ZIP_CD_OFF_CMET + 1] = (h->compMethod >> 8) & 0xFF;
+    Q_ASSERT(h && device && headers);
+		
+    // signature
+	buffer1[0] = 'P';
+	buffer1[1] = 'K';
+	buffer1[2] = 0x01;
+	buffer1[3] = 0x02;
 
-		// last mod file time
-		buffer1[ZIP_CD_OFF_MODT] = h->modTime[0];
-		buffer1[ZIP_CD_OFF_MODT + 1] = h->modTime[1];
+	// version made by  (currently only MS-DOS/FAT - no symlinks or other stuff supported)
+	buffer1[ZIP_CD_OFF_MADEBY] = buffer1[ZIP_CD_OFF_MADEBY + 1] = 0;
 
-		// last mod file date
-		buffer1[ZIP_CD_OFF_MODD] = h->modDate[0];
-		buffer1[ZIP_CD_OFF_MODD + 1] = h->modDate[1];
+	// version needed to extract
+	buffer1[ZIP_CD_OFF_VERSION] = ZIP_VERSION;
+	buffer1[ZIP_CD_OFF_VERSION + 1] = 0;
 
-		// crc (4bytes) [16,17,18,19]
-		setULong(h->crc, buffer1, ZIP_CD_OFF_CRC);
+	// general purpose flag
+	buffer1[ZIP_CD_OFF_GPFLAG] = h->gpFlag[0];
+	buffer1[ZIP_CD_OFF_GPFLAG + 1] = h->gpFlag[1];
 
-		// compressed size (4bytes: [20,21,22,23])
-		setULong(h->szComp, buffer1, ZIP_CD_OFF_CSIZE);
+	// compression method
+	buffer1[ZIP_CD_OFF_CMET] = h->compMethod & 0xFF;
+	buffer1[ZIP_CD_OFF_CMET + 1] = (h->compMethod >> 8) & 0xFF;
 
-		// uncompressed size [24,25,26,27]
-		setULong(h->szUncomp, buffer1, ZIP_CD_OFF_USIZE);
+	// last mod file time
+	buffer1[ZIP_CD_OFF_MODT] = h->modTime[0];
+	buffer1[ZIP_CD_OFF_MODT + 1] = h->modTime[1];
 
-		// filename
-		QByteArray fileNameBytes = itr.key().toAscii();
-		sz = fileNameBytes.size();
-		buffer1[ZIP_CD_OFF_NAMELEN] = sz & 0xFF;
-		buffer1[ZIP_CD_OFF_NAMELEN + 1] = (sz >> 8) & 0xFF;
+	// last mod file date
+	buffer1[ZIP_CD_OFF_MODD] = h->modDate[0];
+	buffer1[ZIP_CD_OFF_MODD + 1] = h->modDate[1];
 
-		// extra field length
-		buffer1[ZIP_CD_OFF_XLEN] = buffer1[ZIP_CD_OFF_XLEN + 1] = 0;
+	// crc (4bytes) [16,17,18,19]
+	setULong(h->crc, buffer1, ZIP_CD_OFF_CRC);
 
-		// file comment length
-		buffer1[ZIP_CD_OFF_COMMLEN] = buffer1[ZIP_CD_OFF_COMMLEN + 1] = 0;
+	// compressed size (4bytes: [20,21,22,23])
+	setULong(h->szComp, buffer1, ZIP_CD_OFF_CSIZE);
 
-		// disk number start
-		buffer1[ZIP_CD_OFF_DISKSTART] = buffer1[ZIP_CD_OFF_DISKSTART + 1] = 0;
+	// uncompressed size [24,25,26,27]
+	setULong(h->szUncomp, buffer1, ZIP_CD_OFF_USIZE);
 
-		// internal file attributes
-		buffer1[ZIP_CD_OFF_IATTR] = buffer1[ZIP_CD_OFF_IATTR + 1] = 0;
+	// filename
+	QByteArray fileNameBytes = fileName.toAscii();
+	sz = fileNameBytes.size();
+	buffer1[ZIP_CD_OFF_NAMELEN] = sz & 0xFF;
+	buffer1[ZIP_CD_OFF_NAMELEN + 1] = (sz >> 8) & 0xFF;
 
-		// external file attributes
-		buffer1[ZIP_CD_OFF_EATTR] =
-		buffer1[ZIP_CD_OFF_EATTR + 1] =
-		buffer1[ZIP_CD_OFF_EATTR + 2] =
-		buffer1[ZIP_CD_OFF_EATTR + 3] = 0;
+	// extra field length
+	buffer1[ZIP_CD_OFF_XLEN] = buffer1[ZIP_CD_OFF_XLEN + 1] = 0;
 
-		// relative offset of local header [42->45]
-		setULong(h->lhOffset, buffer1, ZIP_CD_OFF_LHOFF);
+	// file comment length
+	buffer1[ZIP_CD_OFF_COMMLEN] = buffer1[ZIP_CD_OFF_COMMLEN + 1] = 0;
 
-		if (device->write(buffer1, ZIP_CD_SIZE) != ZIP_CD_SIZE)
-		{
-			//! \todo See if we can detect QFile objects using the Qt Meta Object System
-			/*
-			if (!device->remove())
-				qDebug() << tr("Unable to delete corrupted archive: %1").arg(device->fileName());
-			*/
-			return Zip::WriteFailed;
-		}
+	// disk number start
+	buffer1[ZIP_CD_OFF_DISKSTART] = buffer1[ZIP_CD_OFF_DISKSTART + 1] = 0;
 
-		// Write out filename
-		if ((unsigned int)device->write(fileNameBytes) != sz)
-		{
-			//! \todo SAME AS ABOVE: See if we can detect QFile objects using the Qt Meta Object System
-			/*
-			if (!device->remove())
-				qDebug() << tr("Unable to delete corrupted archive: %1").arg(device->fileName());
-				*/
-			return Zip::WriteFailed;
-		}
+	// internal file attributes
+	buffer1[ZIP_CD_OFF_IATTR] = buffer1[ZIP_CD_OFF_IATTR + 1] = 0;
 
-		szCentralDir += (ZIP_CD_SIZE + sz);
+	// external file attributes
+	buffer1[ZIP_CD_OFF_EATTR] =
+	buffer1[ZIP_CD_OFF_EATTR + 1] =
+	buffer1[ZIP_CD_OFF_EATTR + 2] =
+	buffer1[ZIP_CD_OFF_EATTR + 3] = 0;
 
-	} // central dir headers loop
+	// relative offset of local header [42->45]
+	setULong(h->lhOffset, buffer1, ZIP_CD_OFF_LHOFF);
 
+	if (device->write(buffer1, ZIP_CD_SIZE) != ZIP_CD_SIZE) {
+		return Zip::WriteFailed;
+	}
 
-	// Write end of central directory
+	// Write out filename
+	if ((unsigned int)device->write(fileNameBytes) != sz) {
+		return Zip::WriteFailed;
+	}
 
-	// signature
+	szCentralDir += (ZIP_CD_SIZE + sz);
+
+    return Zip::Ok;
+}
+
+//! \internal
+Zip::ErrorCode ZipPrivate::writeCentralDir(quint32 offCentralDir, quint32 szCentralDir)
+{
+    Q_ASSERT(device && headers);
+
+    unsigned int sz;
+	
+    // signature
 	buffer1[0] = 'P';
 	buffer1[1] = 'K';
 	buffer1[2] = 0x05;
@@ -1153,40 +885,24 @@ Zip::ErrorCode ZipPrivate::closeArchive()
 	QByteArray commentBytes = comment.toAscii();
 	quint16 commentLength = commentBytes.size();
 
-	if (commentLength == 0)
-	{
+	if (commentLength == 0) {
 		buffer1[ZIP_EOCD_OFF_COMMLEN] = buffer1[ZIP_EOCD_OFF_COMMLEN + 1] = 0;
-	}
-	else
-	{
+	} else {
 		buffer1[ZIP_EOCD_OFF_COMMLEN] = commentLength & 0xFF;
 		buffer1[ZIP_EOCD_OFF_COMMLEN + 1] = (commentLength >> 8) & 0xFF;
 	}
 
-	if (device->write(buffer1, ZIP_EOCD_SIZE) != ZIP_EOCD_SIZE)
-	{
-		//! \todo SAME AS ABOVE: See if we can detect QFile objects using the Qt Meta Object System
-		/*
-		if (!device->remove())
-			qDebug() << tr("Unable to delete corrupted archive: %1").arg(device->fileName());
-			*/
+	if (device->write(buffer1, ZIP_EOCD_SIZE) != ZIP_EOCD_SIZE) {
 		return Zip::WriteFailed;
 	}
 
-	if (commentLength != 0)
-	{
-		if ((unsigned int)device->write(commentBytes) != commentLength)
-		{
-			//! \todo SAME AS ABOVE: See if we can detect QFile objects using the Qt Meta Object System
-			/*
-			if (!device->remove())
-				qDebug() << tr("Unable to delete corrupted archive: %1").arg(device->fileName());
-				*/
+	if (commentLength != 0) {
+		if ((unsigned int)device->write(commentBytes) != commentLength) {
 			return Zip::WriteFailed;
 		}
 	}
 
-	return Zip::Ok;
+    return Zip::Ok;
 }
 
 //! \internal
@@ -1194,14 +910,17 @@ void ZipPrivate::reset()
 {
 	comment.clear();
 
-	if (headers != 0)
-	{
+	if (headers) {
 		qDeleteAll(*headers);
 		delete headers;
 		headers = 0;
 	}
 
-	delete device; device = 0;
+	device = 0;
+
+    if (file)
+        delete file;
+    file = 0;
 }
 
 //! \internal Returns the path of the parent directory
@@ -1216,3 +935,286 @@ QString ZipPrivate::extractRoot(const QString& p)
 
 	return d.absolutePath();
 }
+
+
+/************************************************************************
+ Public interface
+*************************************************************************/
+
+/*!
+	Creates a new Zip file compressor.
+*/
+Zip::Zip() : d(new ZipPrivate)
+{
+}
+
+/*!
+	Closes any open archive and releases used resources.
+*/
+Zip::~Zip()
+{
+	closeArchive();
+	delete d;
+}
+
+/*!
+	Returns true if there is an open archive.
+*/
+bool Zip::isOpen() const
+{
+	return d->device;
+}
+
+/*!
+	Sets the password to be used for the next files being added!
+	Files added before calling this method will use the previously
+	set password (if any).
+	Closing the archive won't clear the password!
+*/
+void Zip::setPassword(const QString& pwd)
+{
+	d->password = pwd;
+}
+
+//! Convenience method, clears the current password.
+void Zip::clearPassword()
+{
+	d->password.clear();
+}
+
+//! Returns the currently used password.
+QString Zip::password() const
+{
+	return d->password;
+}
+
+/*!
+	Attempts to create a new Zip archive. If \p overwrite is true and the file
+	already exist it will be overwritten.
+	Any open archive will be closed.
+ */
+Zip::ErrorCode Zip::createArchive(const QString& filename, bool overwrite)
+{
+    closeArchive();
+    Q_ASSERT(!d->device && !d->file);
+
+    if (filename.isEmpty())
+        return Zip::FileNotFound;
+
+	d->file = new QFile(filename);
+
+	if (d->file->exists() && !overwrite) {
+        delete d->file;
+        d->file = 0;
+		return Zip::FileExists;
+	}
+
+	if (!d->file->open(QIODevice::WriteOnly)) {
+        delete d->file;
+        d->file = 0;
+		return Zip::OpenFailed;
+	}
+
+	const Zip::ErrorCode ec = createArchive(d->file);
+	if (ec != Zip::Ok) {
+		closeArchive();
+	}
+
+	return ec;
+}
+
+/*!
+	Attempts to create a new Zip archive. If there is another open archive this will be closed.
+	\warning The class takes ownership of the device!
+ */
+Zip::ErrorCode Zip::createArchive(QIODevice* device)
+{
+	if (!device) {
+		qDebug() << "Invalid device.";
+		return Zip::OpenFailed;
+	}
+
+	return d->createArchive(device);
+}
+
+/*!
+	Returns the current archive comment.
+*/
+QString Zip::archiveComment() const
+{
+	return d->comment;
+}
+
+/*!
+	Sets the comment for this archive. Note: createArchive() should have been
+	called before.
+*/
+void Zip::setArchiveComment(const QString& comment)
+{
+	d->comment = comment;
+}
+
+/*!
+	Convenience method, same as calling
+	Zip::addDirectory(const QString&,const QString&,CompressionLevel)
+	with an empty \p root parameter (or with the parent directory of \p path if the
+	AbsolutePaths options is set).
+
+	The ExtractionOptions are checked in the order they are defined in the zip.h heaser file.
+	This means that the last one overwrites the previous one (if some conflict occurs), i.e.
+	Zip::IgnorePaths | Zip::AbsolutePaths would be interpreted as Zip::IgnorePaths.
+ */
+Zip::ErrorCode Zip::addDirectory(const QString& path, CompressionOptions options, CompressionLevel level)
+{
+	return addDirectory(path, QString(), options, level);
+}
+
+/*!
+	Convenience method, same as calling Zip::addDirectory(const QString&,const QString&,CompressionOptions,CompressionLevel)
+	with the Zip::RelativePaths flag as compression option.
+ */
+Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root, CompressionLevel level)
+{
+	return addDirectory(path, root, Zip::RelativePaths, level);
+}
+
+/*!
+	Convenience method, same as calling Zip::addDirectory(const QString&,const QString&,CompressionOptions,CompressionLevel)
+	with the Zip::IgnorePaths flag as compression option and an empty \p root parameter.
+*/
+Zip::ErrorCode Zip::addDirectoryContents(const QString& path, CompressionLevel level)
+{
+	return addDirectory(path, QString(), IgnorePaths, level);
+}
+
+/*!
+	Convenience method, same as calling Zip::addDirectory(const QString&,const QString&,CompressionOptions,CompressionLevel)
+	with the Zip::IgnorePaths flag as compression option.
+*/
+Zip::ErrorCode Zip::addDirectoryContents(const QString& path, const QString& root, CompressionLevel level)
+{
+	return addDirectory(path, root, IgnorePaths, level);
+}
+
+/*!
+	Recursively adds files contained in \p dir to the archive, using \p root as name for the root folder.
+	Stops adding files if some error occurs.
+
+	The ExtractionOptions are checked in the order they are defined in the zip.h heaser file.
+	This means that the last one overwrites the previous one (if some conflict occurs), i.e.
+	Zip::IgnorePaths | Zip::AbsolutePaths would be interpreted as Zip::IgnorePaths.
+
+	The \p root parameter is ignored with the Zip::IgnorePaths parameter and used as path prefix (a trailing /
+	is always added as directory separator!) otherwise (even with Zip::AbsolutePaths set!).
+*/
+Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root, CompressionOptions options, CompressionLevel level)
+{
+	// qDebug() << QString("addDir(path=%1, root=%2)").arg(path, root);
+
+	// Bad boy didn't call createArchive() yet :)
+	if (!d->device)
+		return Zip::NoOpenArchive;
+
+	QDir dir(path);
+	if (!dir.exists())
+		return Zip::FileNotFound;
+
+	// Remove any trailing separator
+	QString actualRoot = root.trimmed();
+
+	// Preserve Unix root
+	if (actualRoot != QLatin1String("/")) {
+		while (actualRoot.endsWith(QLatin1String("/")) || actualRoot.endsWith(QLatin1String("\\")))
+			actualRoot.truncate(actualRoot.length() - 1);
+	}
+
+	// QDir::cleanPath() fixes some issues with QDir::dirName()
+	QFileInfo current(QDir::cleanPath(path));
+
+	if (!actualRoot.isEmpty() && actualRoot != QLatin1String("/"))
+		actualRoot.append(QLatin1String("/"));
+
+	/* This part is quite confusing and needs some test or check */
+	/* An attempt to compress the / root directory evtl. using a root prefix should be a good test */
+	if (options.testFlag(AbsolutePaths) && !options.testFlag(IgnorePaths)) {
+		QString absolutePath = d->extractRoot(path);
+		if (!absolutePath.isEmpty() && absolutePath != QLatin1String("/"))
+			absolutePath.append(QLatin1String("/"));
+		actualRoot.append(absolutePath);
+	}
+
+	if (!options.testFlag(IgnorePaths)) {
+		actualRoot = actualRoot.append(QDir(current.absoluteFilePath()).dirName());
+		actualRoot.append(QLatin1String("/"));
+	}
+
+	// actualRoot now contains the path of the file relative to the zip archive
+	// with a trailing /
+
+	QFileInfoList list = dir.entryInfoList(
+		QDir::Files |
+		QDir::Dirs |
+		QDir::NoDotAndDotDot |
+		QDir::NoSymLinks);
+
+	ErrorCode ec = Zip::Ok;
+	bool filesAdded = false;
+
+	CompressionOptions recursionOptions;
+	if (options.testFlag(IgnorePaths))
+		recursionOptions |= IgnorePaths;
+	else recursionOptions |= RelativePaths;
+
+	for (int i = 0; i < list.size() && ec == Zip::Ok; ++i) {
+		QFileInfo info = list.at(i);
+		if (info.isDir()) {
+			// Recursion :)
+			ec = addDirectory(info.absoluteFilePath(), actualRoot, recursionOptions, level);
+		} else {
+			ec = d->createEntry(info, actualRoot, level);
+			filesAdded = true;
+		}
+	}
+
+
+	// We need an explicit record for this dir
+	// Non-empty directories don't need it because they have a path component in the filename
+	if (!filesAdded && !options.testFlag(IgnorePaths))
+		ec = d->createEntry(current, actualRoot, level);
+
+	return ec;
+}
+
+/*!
+	Closes the archive and writes any pending data.
+*/
+Zip::ErrorCode Zip::closeArchive()
+{
+	Zip::ErrorCode ec = d->closeArchive();
+	d->reset();
+	return ec;
+}
+
+/*!
+	Returns a locale translated error string for a given error code.
+*/
+QString Zip::formatError(Zip::ErrorCode c) const
+{
+	switch (c)
+	{
+	case Ok: return QCoreApplication::translate("Zip", "ZIP operation completed successfully."); break;
+	case ZlibInit: return QCoreApplication::translate("Zip", "Failed to initialize or load zlib library."); break;
+	case ZlibError: return QCoreApplication::translate("Zip", "zlib library error."); break;
+	case OpenFailed: return QCoreApplication::translate("Zip", "Unable to create or open file."); break;
+	case NoOpenArchive: return QCoreApplication::translate("Zip", "No archive has been created yet."); break;
+	case FileNotFound: return QCoreApplication::translate("Zip", "File or directory does not exist."); break;
+	case ReadFailed: return QCoreApplication::translate("Zip", "File read error."); break;
+	case WriteFailed: return QCoreApplication::translate("Zip", "File write error."); break;
+	case SeekFailed: return QCoreApplication::translate("Zip", "File seek error."); break;
+	default: ;
+	}
+
+	return QCoreApplication::translate("Zip", "Unknown error.");
+}
+
+OSDAB_END_NAMESPACE

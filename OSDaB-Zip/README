@@ -7,7 +7,7 @@ GNU General Public License version 2 (see the file LICENSE.GPL for details)
 -------------------------------------------------------------------------
 
 Website: http://osdab.42cows.org/
-Google Code project page: http://code.google.com/p/osda
+Google Code project page: http://code.google.com/p/osdab
 
 **************** ******* ******************************************************
 
@@ -41,6 +41,11 @@ in the source files for details and more usage examples.
 
 history
 -------
+2011-03-27 - Added support for namespace; 
+  added support for shared library builds;
+  added basic support for time zones; 
+  no longer take ownership of QIODevices (MAJOR API CHANGE!);
+  code clean up.
 2010-07-08 - Bug fix: extractFile() was permanently updating the compressed file 
   size in the zip entry in case of an encrypted entry. Thanks to Serge 
   Kolokolkin for finding and reporting the exact bug.
@@ -75,6 +80,8 @@ features
 - Traditional PKWARE password encryption (strong encryption as introduced by PKZip 
   versions 5.0 and later is NOT available). 
 - Support for archive comments.
+- Optional namespace and shared lib support (see below)
+- Time zone support (see below)
 
 missing features and restrictions
 ---------------------------------
@@ -92,8 +99,28 @@ requirements
 Qt version 4.0.x or later
 zlib library
 
+namespace support
+-----------------
+If you need the classes to be inside a namespace, simply define OSDAB_NAMESPACE 
+in the project file. The classes will then be in a Osdab::Zip namespace.
+
+building as a shared library (.DLL / .so / .dylib)
+--------------------------------------------------
+There are two ways to achieve this. The easiest and cleanest way is to
+edit the zipglobal.h file and remove the "#ifndef OSDAB_ZIP_LIB" block.
+The other way consists in #defining OSDAB_ZIP_LIB in both the project
+you create for the shared zip library and in the projects linking the library.
+An example in the "Example.SharedLib" directory contains such a sample build.
+
+time zones
+----------
+Time zone support is implemented only on Windows and Unix compatible systems.
+It can be disabled by defining OSDAB_ZIP_NO_UTC in the project file.
+The currentUtcOffset() method in zipglobal.cpp is where the current UTC offset
+is calculated. Qt has no proper time zone support (Qt 4.7.x) so the code 
+relies on gmtime and localtime.
+
 
 **************** ******* ******************************************************
-BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
+BEFORE SENDING ANY EMAILS, CHECK OUT THE WEBSITE: http://osdab.42cows.org/
 **************** ******* ******************************************************
-

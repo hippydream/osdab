@@ -1,6 +1,6 @@
 /****************************************************************************
 ** Filename: ZipEntryP.h
-** Last updated [dd/mm/yyyy]: 08/07/2010
+** Last updated [dd/mm/yyyy]: 27/03/2011
 **
 ** Wrapper for a ZIP local header.
 **
@@ -10,7 +10,7 @@
 **
 ** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
-** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
+** This file is part of the OSDaB project (http://osdab.42cows.org/).
 **
 ** This file may be distributed and/or modified under the terms of the
 ** GNU General Public License version 2 as published by the Free Software
@@ -41,6 +41,8 @@
 
 #include <QtCore/QString>
 #include <QtCore/QtGlobal>
+
+OSDAB_BEGIN_NAMESPACE(Zip)
 
 class ZipEntryP
 {
@@ -74,5 +76,7 @@ public:
 	inline bool isEncrypted() const { return gpFlag[0] & 0x01; }
 	inline bool hasDataDescriptor() const { return gpFlag[0] & 0x08; }
 };
+
+OSDAB_END_NAMESPACE
 
 #endif // OSDAB_ZIPENTRY_P__H

@@ -1,6 +1,6 @@
 /****************************************************************************
 ** Filename: unzip_p.h
-** Last updated [dd/mm/yyyy]: 08/07/2010
+** Last updated [dd/mm/yyyy]: 27/03/2011
 **
 ** pkzip 2.0 decompression.
 **
@@ -10,7 +10,7 @@
 **
 ** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
-** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
+** This file is part of the OSDaB project (http://osdab.42cows.org/).
 **
 ** This file may be distributed and/or modified under the terms of the
 ** GNU General Public License version 2 as published by the Free Software
@@ -42,14 +42,19 @@
 #include "unzip.h"
 #include "zipentry_p.h"
 
+#include <QtCore/QObject>
 #include <QtCore/QtGlobal>
 
 // zLib authors suggest using larger buffers (128K or 256K) for (de)compression (especially for inflate())
 // we use a 256K buffer here - if you want to use this code on a pre-iceage mainframe please change it ;)
 #define UNZIP_READ_BUFFER (256*1024)
 
-class UnzipPrivate
+OSDAB_BEGIN_NAMESPACE(Zip)
+
+class UnzipPrivate : public QObject
 {
+    Q_OBJECT
+
 public:
 	UnzipPrivate();
 
@@ -61,6 +66,7 @@ public:
 	QMap<QString,ZipEntryP*>* headers;
 
 	QIODevice* device;
+    QFile* file;
 
 	char buffer1[UNZIP_READ_BUFFER];
 	char buffer2[UNZIP_READ_BUFFER];
@@ -107,6 +113,14 @@ public:
 	inline void initKeys(const QString& pwd, quint32* keys) const;
 
 	inline QDateTime convertDateTime(const unsigned char date[2], const unsigned char time[2]) const;
+
+private slots:
+    void deviceDestroyed(QObject*);
+
+private:
+    void do_closeArchive();
 };
+
+OSDAB_END_NAMESPACE
 
 #endif // OSDAB_UNZIP_P__H

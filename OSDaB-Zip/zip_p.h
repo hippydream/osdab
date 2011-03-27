@@ -1,6 +1,6 @@
 /****************************************************************************
 ** Filename: zip_p.h
-** Last updated [dd/mm/yyyy]: 28/01/2007
+** Last updated [dd/mm/yyyy]: 27/03/2011
 **
 ** pkzip 2.0 file compression.
 **
@@ -10,7 +10,7 @@
 **
 ** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
 **
-** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
+** This file is part of the OSDaB project (http://osdab.42cows.org/).
 **
 ** This file may be distributed and/or modified under the terms of the
 ** GNU General Public License version 2 as published by the Free Software
@@ -43,6 +43,7 @@
 #include "zipentry_p.h"
 
 #include <QtCore/QFileInfo>
+#include <QtCore/QObject>
 #include <QtCore/QtGlobal>
 
 /*!
@@ -51,8 +52,12 @@
 */
 #define ZIP_READ_BUFFER (256*1024)
 
-class ZipPrivate
+OSDAB_BEGIN_NAMESPACE(Zip)
+
+class ZipPrivate : public QObject
 {
+    Q_OBJECT
+
 public:
 	ZipPrivate();
 	virtual ~ZipPrivate();
@@ -60,6 +65,7 @@ public:
 	QMap<QString,ZipEntryP*>* headers;
 
 	QIODevice* device;
+    QFile* file;
 
 	char buffer1[ZIP_READ_BUFFER];
 	char buffer2[ZIP_READ_BUFFER];
@@ -88,6 +94,16 @@ public:
 	inline int decryptByte(quint32 key2) const;
 
 	inline QString extractRoot(const QString& p);
+
+private slots:
+    void deviceDestroyed(QObject*);
+
+private:
+    Zip::ErrorCode do_closeArchive();
+    Zip::ErrorCode writeEntry(const QString& fileName, const ZipEntryP* h, quint32& szCentralDir);
+    Zip::ErrorCode writeCentralDir(quint32 offCentralDir, quint32 szCentralDir);
 };
+
+OSDAB_END_NAMESPACE
 
 #endif // OSDAB_ZIP_P__H

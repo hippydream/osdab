@@ -9,7 +9,7 @@ TARGET = zip_shared
 DEFINES += OSDAB_ZIP_LIB
 
 # Input
-LIBS += -L../bin/ -losdabzip
+LIBS += -L../lib/ -losdabzip
 SOURCES += main.cpp
 DESTDIR = ../bin
 MOC_DIR = ../tmp
