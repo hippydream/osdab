@@ -45,6 +45,7 @@ history
   added support for shared library builds;
   added basic support for time zones; 
   no longer take ownership of QIODevices (MAJOR API CHANGE!);
+  unzip will update last modified time on win32 and posix compliant OS;
   code clean up.
 2010-07-08 - Bug fix: extractFile() was permanently updating the compressed file 
   size in the zip entry in case of an encrypted entry. Thanks to Serge 

@@ -34,6 +34,12 @@
 #undef OSDAB_ZIP_HAS_UTC
 #endif
 
+#if defined(Q_OS_WIN)
+#include <QtCore/qt_windows.h>
+#elif defined(Q_OS_LINUX) || defined(Q_OS_MACX)
+#include <utime.h>
+#endif
+
 OSDAB_BEGIN_NAMESPACE(Zip)
 
 /*! Returns the current UTC offset in seconds unless OSDAB_ZIP_NO_UTC is defined
@@ -103,13 +109,44 @@ QDateTime OSDAB_ZIP_MANGLE(fromFileTimestamp)(const QDateTime& dateTime)
 #endif // OSDAB_ZIP_NO_UTC
 }
 
-QDateTime OSDAB_ZIP_MANGLE(toFileTimestamp)(const QDateTime& dateTime)
+bool OSDAB_ZIP_MANGLE(setFileTimestamp)(const QString& fileName, const QDateTime& dateTime)
 {
-#if !defined OSDAB_ZIP_NO_UTC && defined OSDAB_ZIP_HAS_UTC
-    return dateTime;
-#else
-    return dateTime;
-#endif // OSDAB_ZIP_NO_UTC
-}
+    if (fileName.isEmpty())
+        return true;
 
+#ifdef Q_OS_WIN
+    HANDLE hFile = CreateFile(fileName.toStdWString().c_str(),
+        GENERIC_WRITE, FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    
+    SYSTEMTIME st;
+    FILETIME ft, ftLastMod;
+    const QDate date = dateTime.date();
+    const QTime time = dateTime.time();
+    st.wYear = date.year();
+    st.wMonth = date.month();
+    st.wDay = date.day();
+    st.wHour = time.hour();
+    st.wMinute = time.minute();
+    st.wSecond = time.second();
+    st.wMilliseconds = time.msec();
+
+    SystemTimeToFileTime(&st, &ft);
+    LocalFileTimeToFileTime(&ft, &ftLastMod);
+
+    const bool success = SetFileTime(hFile, NULL, NULL, &ftLastMod);
+    CloseHandle(hFile);
+    return success;
+
+#else if defined Q_OS_LINUX || defined Q_OS_MACX
+
+    struct utimbuf t_buffer;
+    t_buffer.actime = t_buffer.modtime = dateTime.toTime_t();
+    return utime(fileName.toLocal8Bit().constData(), &t_buffer) == 0;
+else
+    return true;
+#endif
+}
 OSDAB_END_NAMESPACE

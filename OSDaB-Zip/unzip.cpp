@@ -657,7 +657,8 @@ void UnzipPrivate::do_closeArchive()
 }
 
 //! \internal
-UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP& entry, const QDir& dir, UnZip::ExtractionOptions options)
+UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP& entry, const QDir& dir, 
+    UnZip::ExtractionOptions options)
 {
     QString name(path);
 	QString dirname;
@@ -709,8 +710,13 @@ UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP&
 	//! \todo Set creation/last_modified date/time
 
 	UnZip::ErrorCode ec = extractFile(path, entry, &outFile, options);
-
 	outFile.close();
+
+    const QDateTime lastModified = convertDateTime(entry.modDate, entry.modTime);
+    const bool setTimeOk = OSDAB_ZIP_MANGLE(setFileTimestamp)(name, lastModified);
+    if (!setTimeOk) {
+        qDebug() << QString("Unable to set last modified time on file: %1").arg(name);
+    }
 
 	if (ec != UnZip::Ok) {
 		if (!outFile.remove())
