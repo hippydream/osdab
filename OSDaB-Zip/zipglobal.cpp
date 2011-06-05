@@ -86,7 +86,7 @@ int OSDAB_ZIP_MANGLE(currentUtcOffset)()
 #else
     tm_struct = localtime(&curr_time_t);
 #endif
-    
+
     if (!tm_struct)
         return 0;
 
@@ -120,7 +120,7 @@ bool OSDAB_ZIP_MANGLE(setFileTimestamp)(const QString& fileName, const QDateTime
     if (hFile == INVALID_HANDLE_VALUE) {
         return false;
     }
-    
+
     SYSTEMTIME st;
     FILETIME ft, ftLastMod;
     const QDate date = dateTime.date();
@@ -140,13 +140,13 @@ bool OSDAB_ZIP_MANGLE(setFileTimestamp)(const QString& fileName, const QDateTime
     CloseHandle(hFile);
     return success;
 
-#else if defined Q_OS_LINUX || defined Q_OS_MACX
+#elif defined(Q_OS_LINUX) || defined(Q_OS_MACX)
 
     struct utimbuf t_buffer;
     t_buffer.actime = t_buffer.modtime = dateTime.toTime_t();
     return utime(fileName.toLocal8Bit().constData(), &t_buffer) == 0;
-else
-    return true;
 #endif
+
+    return true;
 }
 OSDAB_END_NAMESPACE
