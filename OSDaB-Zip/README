@@ -41,6 +41,8 @@ in the source files for details and more usage examples.
 
 history
 -------
+2011-06-25 - Bug entry #1 - checking of "version needed to extract" flag 
+  (thanks to Dominik for reporting)
 2011-06-25 - Fix compile errors on GCC/Linux.
 2011-03-27 - Added support for namespace; 
   added support for shared library builds;
