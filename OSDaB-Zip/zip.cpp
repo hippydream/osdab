@@ -266,6 +266,86 @@ void ZipPrivate::deviceDestroyed(QObject*)
     do_closeArchive();
 }
 
+//! \internal Actual implementation of the addDirectory* methods.
+Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root,
+    Zip::CompressionOptions options, Zip::CompressionLevel level, int hierarchyLevel)
+{
+    // qDebug() << QString("addDir(path=%1, root=%2)").arg(path, root);
+
+    // Bad boy didn't call createArchive() yet :)
+    if (!device)
+        return Zip::NoOpenArchive;
+
+    QDir dir(path);
+    if (!dir.exists())
+        return Zip::FileNotFound;
+
+    // Remove any trailing separator
+    QString actualRoot = root.trimmed();
+
+    // Preserve Unix root
+    if (actualRoot != QLatin1String("/")) {
+        while (actualRoot.endsWith(QLatin1String("/")) || actualRoot.endsWith(QLatin1String("\\")))
+            actualRoot.truncate(actualRoot.length() - 1);
+    }
+
+    // QDir::cleanPath() fixes some issues with QDir::dirName()
+    QFileInfo current(QDir::cleanPath(path));
+
+    if (!actualRoot.isEmpty() && actualRoot != QLatin1String("/"))
+        actualRoot.append(QLatin1String("/"));
+
+    /* This part is quite confusing and needs some test or check */
+    /* An attempt to compress the / root directory evtl. using a root prefix should be a good test */
+    if (options.testFlag(Zip::AbsolutePaths) && !options.testFlag(Zip::IgnorePaths)) {
+        QString absolutePath = extractRoot(path);
+        if (!absolutePath.isEmpty() && absolutePath != QLatin1String("/"))
+            absolutePath.append(QLatin1String("/"));
+        actualRoot.append(absolutePath);
+    }
+
+    if (!options.testFlag(Zip::IgnorePaths)) {
+        actualRoot = actualRoot.append(QDir(current.absoluteFilePath()).dirName());
+        actualRoot.append(QLatin1String("/"));
+    }
+
+    // actualRoot now contains the path of the file relative to the zip archive
+    // with a trailing /
+
+    QFileInfoList list = dir.entryInfoList(
+        QDir::Files |
+        QDir::Dirs |
+        QDir::NoDotAndDotDot |
+        QDir::NoSymLinks);
+
+    Zip::ErrorCode ec = Zip::Ok;
+    bool filesAdded = false;
+
+    Zip::CompressionOptions recursionOptions;
+    if (options.testFlag(Zip::IgnorePaths))
+        recursionOptions |= Zip::IgnorePaths;
+    else recursionOptions |= Zip::RelativePaths;
+
+    for (int i = 0; i < list.size() && ec == Zip::Ok; ++i) {
+        QFileInfo info = list.at(i);
+        if (info.isDir()) {
+            // Recursion
+            ec = addDirectory(info.absoluteFilePath(), actualRoot, recursionOptions,
+                level, hierarchyLevel + 1);
+        } else {
+            ec = createEntry(info, actualRoot, level);
+            filesAdded = true;
+        }
+    }
+
+    // We need an explicit record for this dir
+    // Non-empty directories don't need it because they have a path component in the filename
+    if (!filesAdded && !options.testFlag(Zip::IgnorePaths))
+        ec = createEntry(current, actualRoot, level);
+
+    return ec;
+}
+
 //! \internal Writes a new entry in the zip file.
 Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& root, Zip::CompressionLevel level)
 {
@@ -1107,82 +1187,31 @@ Zip::ErrorCode Zip::addDirectoryContents(const QString& path, const QString& roo
 	The \p root parameter is ignored with the Zip::IgnorePaths parameter and used as path prefix (a trailing /
 	is always added as directory separator!) otherwise (even with Zip::AbsolutePaths set!).
 */
-Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root, CompressionOptions options, CompressionLevel level)
+Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root,
+    CompressionOptions options, CompressionLevel level)
 {
-	// qDebug() << QString("addDir(path=%1, root=%2)").arg(path, root);
+    return d->addDirectory(path, root, options, level);
+}
 
-	// Bad boy didn't call createArchive() yet :)
-	if (!d->device)
-		return Zip::NoOpenArchive;
+//! Not implemented
+Zip::ErrorCode Zip::addFile(const QString& path,
+    CompressionOptions options, CompressionLevel level)
+{
+    return InternalError;
+}
 
-	QDir dir(path);
-	if (!dir.exists())
-		return Zip::FileNotFound;
+//! Not implemented
+Zip::ErrorCode Zip::addFile(const QString& path, const QString& root,
+    CompressionLevel level)
+{
+    return InternalError;
+}
 
-	// Remove any trailing separator
-	QString actualRoot = root.trimmed();
-
-	// Preserve Unix root
-	if (actualRoot != QLatin1String("/")) {
-		while (actualRoot.endsWith(QLatin1String("/")) || actualRoot.endsWith(QLatin1String("\\")))
-			actualRoot.truncate(actualRoot.length() - 1);
-	}
-
-	// QDir::cleanPath() fixes some issues with QDir::dirName()
-	QFileInfo current(QDir::cleanPath(path));
-
-	if (!actualRoot.isEmpty() && actualRoot != QLatin1String("/"))
-		actualRoot.append(QLatin1String("/"));
-
-	/* This part is quite confusing and needs some test or check */
-	/* An attempt to compress the / root directory evtl. using a root prefix should be a good test */
-	if (options.testFlag(AbsolutePaths) && !options.testFlag(IgnorePaths)) {
-		QString absolutePath = d->extractRoot(path);
-		if (!absolutePath.isEmpty() && absolutePath != QLatin1String("/"))
-			absolutePath.append(QLatin1String("/"));
-		actualRoot.append(absolutePath);
-	}
-
-	if (!options.testFlag(IgnorePaths)) {
-		actualRoot = actualRoot.append(QDir(current.absoluteFilePath()).dirName());
-		actualRoot.append(QLatin1String("/"));
-	}
-
-	// actualRoot now contains the path of the file relative to the zip archive
-	// with a trailing /
-
-	QFileInfoList list = dir.entryInfoList(
-		QDir::Files |
-		QDir::Dirs |
-		QDir::NoDotAndDotDot |
-		QDir::NoSymLinks);
-
-	ErrorCode ec = Zip::Ok;
-	bool filesAdded = false;
-
-	CompressionOptions recursionOptions;
-	if (options.testFlag(IgnorePaths))
-		recursionOptions |= IgnorePaths;
-	else recursionOptions |= RelativePaths;
-
-	for (int i = 0; i < list.size() && ec == Zip::Ok; ++i) {
-		QFileInfo info = list.at(i);
-		if (info.isDir()) {
-			// Recursion :)
-			ec = addDirectory(info.absoluteFilePath(), actualRoot, recursionOptions, level);
-		} else {
-			ec = d->createEntry(info, actualRoot, level);
-			filesAdded = true;
-		}
-	}
-
-
-	// We need an explicit record for this dir
-	// Non-empty directories don't need it because they have a path component in the filename
-	if (!filesAdded && !options.testFlag(IgnorePaths))
-		ec = d->createEntry(current, actualRoot, level);
-
-	return ec;
+//! Not implemented
+Zip::ErrorCode Zip::addFile(const QString& path, const QString& root,
+    CompressionOptions options, CompressionLevel level)
+{
+    return InternalError;
 }
 
 /*!

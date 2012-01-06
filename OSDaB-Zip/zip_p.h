@@ -83,7 +83,11 @@ public:
 
 	bool zLibInit();
 
-	Zip::ErrorCode createEntry(const QFileInfo& file, const QString& root, Zip::CompressionLevel level);
+    Zip::ErrorCode addDirectory(const QString& path, const QString& root,
+        Zip::CompressionOptions options, Zip::CompressionLevel level,
+        int hierarchyLevel = 0);
+    Zip::ErrorCode createEntry(const QFileInfo& file, const QString& root,
+        Zip::CompressionLevel level);
 	Zip::CompressionLevel detectCompressionByMime(const QString& ext);
 
 	inline void encryptBytes(quint32* keys, char* buffer, qint64 read);

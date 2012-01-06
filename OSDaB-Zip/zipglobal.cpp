@@ -65,7 +65,7 @@ int OSDAB_ZIP_MANGLE(currentUtcOffset)()
     tzset();
     tm res;
     tm_struct = gmtime_r(&curr_time_t, &res);
-#elif defined Q_OS_WIN
+#elif defined Q_OS_WIN && !defined Q_CC_MINGW
     if (gmtime_s(tm_struct, &curr_time_t))
         return 0;
 #else
@@ -80,7 +80,7 @@ int OSDAB_ZIP_MANGLE(currentUtcOffset)()
 #if !defined(QT_NO_THREAD) && defined(_POSIX_THREAD_SAFE_FUNCTIONS)
     // use the reentrant version of localtime() where available
     tm_struct = localtime_r(&curr_time_t, &res);
-#elif defined Q_OS_WIN
+#elif defined Q_OS_WIN && !defined Q_CC_MINGW
     if (localtime_s(tm_struct, &curr_time_t))
         return 0;
 #else

@@ -59,7 +59,8 @@ public:
 		FileNotFound,
 		ReadFailed,
 		WriteFailed,
-		SeekFailed
+        SeekFailed,
+        InternalError
 	};
 
 	enum CompressionLevel
@@ -72,12 +73,18 @@ public:
 
 	enum CompressionOption
 	{
-		//! Does not preserve absolute paths in the zip file when adding a file/directory (default)
+        /*! Does not preserve absolute paths in the zip file when adding a
+            file or directory (default) */
 		RelativePaths = 0x0001,
-		//! Preserve absolute paths
+        /*! Preserve absolute paths */
 		AbsolutePaths = 0x0002,
-		//! Do not store paths. All the files are put in the (evtl. user defined) root of the zip file
-		IgnorePaths = 0x0004
+        /*! Do not store paths. All the files are put in the (evtl. user defined)
+            root of the zip file */
+        IgnorePaths = 0x0004,
+        /*! Works only with addDirectory(). Adds the directory's contents,
+            including subdirectories, but does not add an entry for the root
+            directory itself. */
+        IgnoreRoot = 0x0008
 	};
 	Q_DECLARE_FLAGS(CompressionOptions, CompressionOption)
 
@@ -102,6 +109,10 @@ public:
 	ErrorCode addDirectory(const QString& path, CompressionOptions options = RelativePaths, CompressionLevel level = AutoFull);
 	ErrorCode addDirectory(const QString& path, const QString& root, CompressionLevel level = AutoFull);
 	ErrorCode addDirectory(const QString& path, const QString& root, CompressionOptions options = RelativePaths, CompressionLevel level = AutoFull);
+
+    ErrorCode addFile(const QString& path, CompressionOptions options = RelativePaths, CompressionLevel level = AutoFull);
+    ErrorCode addFile(const QString& path, const QString& root, CompressionLevel level = AutoFull);
+    ErrorCode addFile(const QString& path, const QString& root, CompressionOptions options = RelativePaths, CompressionLevel level = AutoFull);
 
 	ErrorCode closeArchive();
 
