@@ -283,29 +283,45 @@ Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root
     // Remove any trailing separator
     QString actualRoot = root.trimmed();
 
-    // Preserve Unix root
-    if (actualRoot != QLatin1String("/")) {
-        while (actualRoot.endsWith(QLatin1String("/")) || actualRoot.endsWith(QLatin1String("\\")))
+    // Preserve Unix root but make sure the path ends only with a single
+    // unix like separator
+    const bool isUnixRoot = actualRoot.length() == 1 && actualRoot.at(0) == QLatin1Char('/');
+    if (!actualRoot.isEmpty() && !isUnixRoot) {
+        while (actualRoot.endsWith(QLatin1String("\\")))
             actualRoot.truncate(actualRoot.length() - 1);
+
+        int sepCount = 0;
+        for (int i = actualRoot.length()-1; i >= 0; --i) {
+            if (actualRoot.at(i) == QLatin1Char('/'))
+                ++sepCount;
+            else break;
+        }
+
+        if (sepCount > 1)
+            actualRoot.truncate(actualRoot.length() - (sepCount-1));
+        else if (sepCount == 0)
+            actualRoot.append(QLatin1String("/"));
     }
 
     // QDir::cleanPath() fixes some issues with QDir::dirName()
     QFileInfo current(QDir::cleanPath(path));
 
-    if (!actualRoot.isEmpty() && actualRoot != QLatin1String("/"))
-        actualRoot.append(QLatin1String("/"));
+    const bool path_absolute = options.testFlag(Zip::AbsolutePaths);
+    const bool path_ignore = options.testFlag(Zip::IgnorePaths);
+    const bool path_noroot = options.testFlag(Zip::IgnoreRoot);
 
     /* This part is quite confusing and needs some test or check */
     /* An attempt to compress the / root directory evtl. using a root prefix should be a good test */
-    if (options.testFlag(Zip::AbsolutePaths) && !options.testFlag(Zip::IgnorePaths)) {
-        QString absolutePath = extractRoot(path);
+    if (path_absolute && !path_ignore && !path_noroot) {
+        QString absolutePath = extractRoot(path, options);
         if (!absolutePath.isEmpty() && absolutePath != QLatin1String("/"))
             absolutePath.append(QLatin1String("/"));
         actualRoot.append(absolutePath);
     }
 
-    if (!options.testFlag(Zip::IgnorePaths)) {
-        actualRoot = actualRoot.append(QDir(current.absoluteFilePath()).dirName());
+    const bool skipDirName = !hierarchyLevel && path_noroot && actualRoot.isEmpty();
+    if (!path_ignore && !skipDirName) {
+        actualRoot.append(QDir(current.absoluteFilePath()).dirName());
         actualRoot.append(QLatin1String("/"));
     }
 
@@ -322,7 +338,7 @@ Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root
     bool filesAdded = false;
 
     Zip::CompressionOptions recursionOptions;
-    if (options.testFlag(Zip::IgnorePaths))
+    if (path_ignore)
         recursionOptions |= Zip::IgnorePaths;
     else recursionOptions |= Zip::RelativePaths;
 
@@ -340,7 +356,7 @@ Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root
 
     // We need an explicit record for this dir
     // Non-empty directories don't need it because they have a path component in the filename
-    if (!filesAdded && !options.testFlag(Zip::IgnorePaths))
+    if (!filesAdded && !path_ignore)
         ec = createEntry(current, actualRoot, level);
 
     return ec;
@@ -1004,7 +1020,7 @@ void ZipPrivate::reset()
 }
 
 //! \internal Returns the path of the parent directory
-QString ZipPrivate::extractRoot(const QString& p)
+QString ZipPrivate::extractRoot(const QString& p, Zip::CompressionOptions o)
 {
 	QDir d(QDir::cleanPath(p));
 	if (!d.exists())
@@ -1190,6 +1206,7 @@ Zip::ErrorCode Zip::addDirectoryContents(const QString& path, const QString& roo
 Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root,
     CompressionOptions options, CompressionLevel level)
 {
+    qt_noop();
     return d->addDirectory(path, root, options, level);
 }
 

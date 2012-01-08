@@ -97,7 +97,7 @@ public:
 	inline void initKeys(quint32* keys) const;
 	inline int decryptByte(quint32 key2) const;
 
-	inline QString extractRoot(const QString& p);
+    inline QString extractRoot(const QString& p, Zip::CompressionOptions o);
 
 private slots:
     void deviceDestroyed(QObject*);
