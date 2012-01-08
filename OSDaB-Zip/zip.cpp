@@ -226,6 +226,40 @@
 	\value Zip::AutoFull Use both CPU and MIME type detection.
 */
 
+namespace {
+
+struct ZippedDir {
+    bool init;
+    QString actualRoot;
+    int files;
+    ZippedDir() : init(false), actualRoot(), files(0) {}
+};
+
+void checkRootPath(QString& path)
+{
+    const bool isUnixRoot = path.length() == 1 && path.at(0) == QLatin1Char('/');
+    if (!path.isEmpty() && !isUnixRoot) {
+        while (path.endsWith(QLatin1String("\\")))
+            path.truncate(path.length() - 1);
+
+        int sepCount = 0;
+        for (int i = path.length()-1; i >= 0; --i) {
+            if (path.at(i) == QLatin1Char('/'))
+                ++sepCount;
+            else break;
+        }
+
+        if (sepCount > 1)
+            path.truncate(path.length() - (sepCount-1));
+        else if (sepCount == 0)
+            path.append(QLatin1String("/"));
+    }
+}
+
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 OSDAB_BEGIN_NAMESPACE(Zip)
 
 /************************************************************************
@@ -285,11 +319,36 @@ void ZipPrivate::deviceDestroyed(QObject*)
     do_closeArchive();
 }
 
+/*! Returns true if an entry for \p info has already been added.
+    Uses file size and lower case absolute path to compare entries.
+*/
+bool ZipPrivate::containsEntry(const QFileInfo& info) const
+{
+    if (!headers || headers->isEmpty())
+        return false;
+
+    const qint64 sz = info.size();
+    const QString path = info.absoluteFilePath().toLower();
+
+    QMap<QString,ZipEntryP*>::ConstIterator b = headers->constBegin();
+    const QMap<QString,ZipEntryP*>::ConstIterator e = headers->constEnd();
+    while (b != e) {
+        const ZipEntryP* e = b.value();
+        if (e->fileSize == sz && e->absolutePath == path)
+            return true;
+        ++b;
+    }
+
+    return false;
+}
+
 //! \internal Actual implementation of the addDirectory* methods.
 Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root,
-    Zip::CompressionOptions options, Zip::CompressionLevel level, int hierarchyLevel)
+    Zip::CompressionOptions options, Zip::CompressionLevel level, int hierarchyLevel,
+    int* addedFiles)
 {
-    // qDebug() << QString("addDir(path=%1, root=%2)").arg(path, root);
+    if (addedFiles)
+        ++(*addedFiles);
 
     // Bad boy didn't call createArchive() yet :)
     if (!device)
@@ -304,23 +363,7 @@ Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root
 
     // Preserve Unix root but make sure the path ends only with a single
     // unix like separator
-    const bool isUnixRoot = actualRoot.length() == 1 && actualRoot.at(0) == QLatin1Char('/');
-    if (!actualRoot.isEmpty() && !isUnixRoot) {
-        while (actualRoot.endsWith(QLatin1String("\\")))
-            actualRoot.truncate(actualRoot.length() - 1);
-
-        int sepCount = 0;
-        for (int i = actualRoot.length()-1; i >= 0; --i) {
-            if (actualRoot.at(i) == QLatin1Char('/'))
-                ++sepCount;
-            else break;
-        }
-
-        if (sepCount > 1)
-            actualRoot.truncate(actualRoot.length() - (sepCount-1));
-        else if (sepCount == 0)
-            actualRoot.append(QLatin1String("/"));
-    }
+    ::checkRootPath(actualRoot);
 
     // QDir::cleanPath() fixes some issues with QDir::dirName()
     QFileInfo current(QDir::cleanPath(path));
@@ -329,8 +372,6 @@ Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root
     const bool path_ignore = options.testFlag(Zip::IgnorePaths);
     const bool path_noroot = options.testFlag(Zip::IgnoreRoot);
 
-    /* This part is quite confusing and needs some test or check */
-    /* An attempt to compress the / root directory evtl. using a root prefix should be a good test */
     if (path_absolute && !path_ignore && !path_noroot) {
         QString absolutePath = extractRoot(path, options);
         if (!absolutePath.isEmpty() && absolutePath != QLatin1String("/"))
@@ -347,11 +388,17 @@ Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root
     // actualRoot now contains the path of the file relative to the zip archive
     // with a trailing /
 
-    QFileInfoList list = dir.entryInfoList(
-        QDir::Files |
-        QDir::Dirs |
-        QDir::NoDotAndDotDot |
-        QDir::NoSymLinks);
+    const bool skipBad = options & Zip::SkipBadFiles;
+    const bool noDups = options & Zip::CheckForDuplicates;
+
+    const QDir::Filters dir_filter =
+            QDir::Files |
+            QDir::Dirs |
+            QDir::NoDotAndDotDot |
+            QDir::NoSymLinks;
+    const QDir::SortFlags dir_sort =
+            QDir::DirsFirst;
+    QFileInfoList list = dir.entryInfoList(dir_filter, dir_sort);
 
     Zip::ErrorCode ec = Zip::Ok;
     bool filesAdded = false;
@@ -361,15 +408,26 @@ Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root
         recursionOptions |= Zip::IgnorePaths;
     else recursionOptions |= Zip::RelativePaths;
 
-    for (int i = 0; i < list.size() && ec == Zip::Ok; ++i) {
+    for (int i = 0; i < list.size(); ++i) {
         QFileInfo info = list.at(i);
+        const QString absPath = info.absoluteFilePath();
+        if (noDups && containsEntry(info))
+            continue;
         if (info.isDir()) {
             // Recursion
-            ec = addDirectory(info.absoluteFilePath(), actualRoot, recursionOptions,
-                level, hierarchyLevel + 1);
+            ec = addDirectory(absPath, actualRoot, recursionOptions,
+                level, hierarchyLevel + 1, addedFiles);
         } else {
             ec = createEntry(info, actualRoot, level);
-            filesAdded = true;
+            if (ec == Zip::Ok) {
+                filesAdded = true;
+                if (addedFiles)
+                    ++(*addedFiles);
+            }
+        }
+
+        if (ec != Zip::Ok && !skipBad) {
+           break;
         }
     }
 
@@ -377,6 +435,112 @@ Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root
     // Non-empty directories don't need it because they have a path component in the filename
     if (!filesAdded && !path_ignore)
         ec = createEntry(current, actualRoot, level);
+
+    return ec;
+}
+
+//! \internal Actual implementation of the addFile methods.
+Zip::ErrorCode ZipPrivate::addFiles(const QStringList& files, const QString& root,
+    Zip::CompressionOptions options, Zip::CompressionLevel level,
+    int* addedFiles)
+{
+    if (addedFiles)
+        *addedFiles = 0;
+
+    const bool skipBad = options & Zip::SkipBadFiles;
+    const bool noDups = options & Zip::CheckForDuplicates;
+
+    // Bad boy didn't call createArchive() yet :)
+    if (!device)
+        return Zip::NoOpenArchive;
+
+    QFileInfoList paths;
+    paths.reserve(files.size());
+    for (int i = 0; i < files.size(); ++i) {
+        QFileInfo info(files.at(i));
+        if (noDups && (paths.contains(info) || containsEntry(info)))
+            continue;
+        if (!info.exists() || !info.isReadable()) {
+            if (skipBad) {
+                continue;
+            } else {
+                return Zip::FileNotFound;
+            }
+        }
+        paths.append(info);
+    }
+
+    if (paths.isEmpty())
+        return Zip::Ok;
+
+    // Remove any trailing separator
+    QString actualRoot = root.trimmed();
+
+    // Preserve Unix root but make sure the path ends only with a single
+    // unix like separator
+    ::checkRootPath(actualRoot);
+
+    const bool path_absolute = options.testFlag(Zip::AbsolutePaths);
+    const bool path_ignore = options.testFlag(Zip::IgnorePaths);
+    const bool path_noroot = options.testFlag(Zip::IgnoreRoot);
+
+    Zip::ErrorCode ec = Zip::Ok;
+    QHash<QString, ZippedDir> dirMap;
+
+    for (int i = 0; i < paths.size(); ++i) {
+        const QFileInfo& info = paths.at(i);
+        const QString path = QFileInfo(QDir::cleanPath(info.absolutePath())).absolutePath();
+
+        ZippedDir& zd = dirMap[path];
+        if (!zd.init) {
+            zd.init = true;
+            zd.actualRoot = actualRoot;
+            if (path_absolute && !path_ignore && !path_noroot) {
+                QString absolutePath = extractRoot(path, options);
+                if (!absolutePath.isEmpty() && absolutePath != QLatin1String("/"))
+                    absolutePath.append(QLatin1String("/"));
+                zd.actualRoot.append(absolutePath);
+            }
+
+            if (!path_ignore && !path_noroot) {
+                zd.actualRoot.append(QDir(path).dirName());
+                zd.actualRoot.append(QLatin1String("/"));
+            }
+        }
+
+        // zd.actualRoot now contains the path of the file relative to the zip archive
+        // with a trailing /
+
+        if (info.isDir()) {
+            // Recursion
+            ec = addDirectory(info.absoluteFilePath(), actualRoot, options,
+                level, 1, addedFiles);
+        } else {
+            ec = createEntry(info, actualRoot, level);
+            if (ec == Zip::Ok) {
+                ++zd.files;
+                if (addedFiles)
+                    ++(*addedFiles);
+            }
+        }
+
+        if (ec != Zip::Ok && !skipBad) {
+           break;
+        }
+    }
+
+    // Create explicit records for empty directories
+    if (!path_ignore) {
+        QHash<QString, ZippedDir>::ConstIterator b = dirMap.constBegin();
+        const QHash<QString, ZippedDir>::ConstIterator e = dirMap.constEnd();
+        while (b != e) {
+            const ZippedDir& zd = b.value();
+            if (zd.files <= 0) {
+                ec = createEntry(b.key(), zd.actualRoot, level);
+            }
+            ++b;
+        }
+    }
 
     return ec;
 }
@@ -429,6 +593,8 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 
 	// create header and store it to write a central directory later
 	ZipEntryP* h = new ZipEntryP;
+    h->absolutePath = file.absoluteFilePath().toLower();
+    h->fileSize = file.size();
 
 	h->compMethod = (level == Zip::Store) ? 0 : 0x0008;
 
@@ -1223,11 +1389,15 @@ Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root, Compr
 
 	The \p root parameter is ignored with the Zip::IgnorePaths parameter and used as path prefix (a trailing /
 	is always added as directory separator!) otherwise (even with Zip::AbsolutePaths set!).
+
+    If \p addedFiles is not null it is set to the number of successfully added
+    files.
 */
 Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root,
-    CompressionOptions options, CompressionLevel level)
+    CompressionOptions options, CompressionLevel level, int* addedFiles)
 {
-    return d->addDirectory(path, root, options, level);
+    const int hierarchyLev = 0;
+    return d->addDirectory(path, root, options, level, hierarchyLev, addedFiles);
 }
 
 /*!
@@ -1251,6 +1421,8 @@ Zip::ErrorCode Zip::addFile(const QString& path, const QString& root,
 
 /*!
     Adds the file at \p path to the archive, using \p root as name for the root folder.
+    If \p path points to a directory the behaviour is basically the same as
+    addDirectory().
 
     The ExtractionOptions are checked in the order they are defined in the zip.h heaser file.
     This means that the last one overwrites the previous one (if some conflict occurs), i.e.
@@ -1262,7 +1434,9 @@ Zip::ErrorCode Zip::addFile(const QString& path, const QString& root,
 Zip::ErrorCode Zip::addFile(const QString& path, const QString& root,
     CompressionOptions options, CompressionLevel level)
 {
-    return InternalError;
+    if (path.isEmpty())
+        return Zip::Ok;
+    return addFiles(QStringList() << path, root, options, level);
 }
 
 /*!
@@ -1285,7 +1459,10 @@ Zip::ErrorCode Zip::addFiles(const QStringList& paths, const QString& root,
 }
 
 /*!
-    Adds the files in \p paths to the archive, using \p root as name for the root folder.
+    Adds the files or directories in \p paths to the archive, using \p root as
+    name for the root folder.
+    This is similar to calling addFile or addDirectory for all the entries in
+    \p paths, except it is slightly faster.
 
     The ExtractionOptions are checked in the order they are defined in the zip.h heaser file.
     This means that the last one overwrites the previous one (if some conflict occurs), i.e.
@@ -1293,11 +1470,14 @@ Zip::ErrorCode Zip::addFiles(const QStringList& paths, const QString& root,
 
     The \p root parameter is ignored with the Zip::IgnorePaths parameter and used as path prefix (a trailing /
     is always added as directory separator!) otherwise (even with Zip::AbsolutePaths set!).
+
+    If \p addedFiles is not null it is set to the number of successfully added
+    files.
 */
 Zip::ErrorCode Zip::addFiles(const QStringList& paths, const QString& root,
-    CompressionOptions options, CompressionLevel level)
+    CompressionOptions options, CompressionLevel level, int* addedFiles)
 {
-    return InternalError;
+    return d->addFiles(paths, root, options, level, addedFiles);
 }
 
 /*!

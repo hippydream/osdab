@@ -84,7 +84,17 @@ public:
         /*! Works only with addDirectory(). Adds the directory's contents,
             including subdirectories, but does not add an entry for the root
             directory itself. */
-        IgnoreRoot = 0x0008
+        IgnoreRoot = 0x0008,
+        /*! Used only when compressing a directory or multiple files.
+            If set invalid or unreadable files are simply skipped.
+        */
+        SkipBadFiles = 0x0020,
+        /*! Makes sure a file is never added twice to the same zip archive.
+            This check is only necessary in certain usage scenarios and given
+            that it slows down processing you need to enable it explicitly with
+            this flag.
+        */
+        CheckForDuplicates = 0x0040
 	};
 	Q_DECLARE_FLAGS(CompressionOptions, CompressionOption)
 
@@ -113,7 +123,8 @@ public:
     ErrorCode addDirectory(const QString& path, const QString& root,
         CompressionLevel level = AutoFull);
     ErrorCode addDirectory(const QString& path, const QString& root,
-        CompressionOptions options, CompressionLevel level = AutoFull);
+        CompressionOptions options, CompressionLevel level = AutoFull,
+        int* addedFiles = 0);
 
     ErrorCode addFile(const QString& path,
         CompressionLevel level = AutoFull);
@@ -129,7 +140,8 @@ public:
         CompressionLevel level = AutoFull);
     ErrorCode addFiles(const QStringList& paths, const QString& root,
         CompressionOptions options,
-        CompressionLevel level = AutoFull);
+        CompressionLevel level = AutoFull,
+        int* addedFiles = 0);
 
 	ErrorCode closeArchive();
 

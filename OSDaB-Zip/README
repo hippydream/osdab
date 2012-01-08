@@ -41,6 +41,10 @@ in the source files for details and more usage examples.
 
 history
 -------
+2012-01-08 - Implemented Zip::IgnoreRoot flag; added addFile() and addFiles()
+  convenience methods;
+  added Zip::CheckForDuplicates and Zip::SkipBadFiles flags;
+  added (very) minor improvements.
 2011-06-25 - Bug entry #2 - checking of "version needed to extract" flag 
   (thanks to Dominik for reporting)
 2011-06-25 - Fix compile errors on GCC/Linux.

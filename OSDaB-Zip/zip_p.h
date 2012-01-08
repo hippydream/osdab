@@ -83,9 +83,15 @@ public:
 
 	bool zLibInit();
 
+    bool containsEntry(const QFileInfo& info) const;
+
     Zip::ErrorCode addDirectory(const QString& path, const QString& root,
         Zip::CompressionOptions options, Zip::CompressionLevel level,
-        int hierarchyLevel = 0);
+        int hierarchyLevel, int* addedFiles = 0);
+    Zip::ErrorCode addFiles(const QStringList& paths, const QString& root,
+        Zip::CompressionOptions options, Zip::CompressionLevel level,
+        int* addedFiles);
+
     Zip::ErrorCode createEntry(const QFileInfo& file, const QString& root,
         Zip::CompressionLevel level);
 	Zip::CompressionLevel detectCompressionByMime(const QString& ext);
