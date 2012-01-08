@@ -8,7 +8,7 @@
 ** (mainly Info-Zip and Gilles Vollant's minizip).
 ** Compression and decompression actually uses the zlib library.
 **
-** Copyright (C) 2007-2011 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2012 Angius Fabrizio. All rights reserved.
 **
 ** This file is part of the OSDaB project (http://osdab.42cows.org/).
 **
