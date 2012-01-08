@@ -117,38 +117,35 @@
 	\verbatim
 	Suppose you have this directory structure:
 
-	/root/dir1/
-	/root/dir1/file1.1
-	/root/dir1/file1.2
-	/root/dir1/dir1.1/
-	/root/dir1/dir1.2/file1.2.1
+    /home/user/dir1/file1.1
+    /home/user/dir1/file1.2
+    /home/user/dir1/dir1.1/
+    /home/user/dir1/dir1.2/file1.2.1
 
-	EXAMPLE 1:
-	myZipInstance.addDirectory("/root/dir1");
+    EXAMPLE 1:
+    myZipInstance.addDirectory("/home/user/dir1");
 
 	RESULT:
 	Beheaves like any common zip software and creates a zip file with this structure:
 
-	dir1/
 	dir1/file1.1
 	dir1/file1.2
 	dir1/dir1.1/
 	dir1/dir1.2/file1.2.1
 
 	EXAMPLE 2:
-	myZipInstance.addDirectory("/root/dir1", "myRoot/myFolder");
+    myZipInstance.addDirectory("/home/user/dir1", "myRoot/myFolder");
 
 	RESULT:
 	Adds a custom root to the paths and creates a zip file with this structure:
 
-	myRoot/myFolder/dir1/
 	myRoot/myFolder/dir1/file1.1
 	myRoot/myFolder/dir1/file1.2
 	myRoot/myFolder/dir1/dir1.1/
 	myRoot/myFolder/dir1/dir1.2/file1.2.1
 
 	EXAMPLE 3:
-	myZipInstance.addDirectory("/root/dir1", Zip::AbsolutePaths);
+    myZipInstance.addDirectory("/home/user/dir1", Zip::AbsolutePaths);
 
 	NOTE:
 	Same as calling addDirectory(SOME_PATH, PARENT_PATH_of_SOME_PATH).
@@ -156,24 +153,46 @@
 	RESULT:
 	Preserves absolute paths and creates a zip file with this structure:
 
-	/root/dir1/
-	/root/dir1/file1.1
-	/root/dir1/file1.2
-	/root/dir1/dir1.1/
-	/root/dir1/dir1.2/file1.2.1
+    /home/user/dir1/file1.1
+    /home/user/dir1/file1.2
+    /home/user/dir1/dir1.1/
+    /home/user/dir1/dir1.2/file1.2.1
 
 	EXAMPLE 4:
 	myZipInstance.setPassword("hellopass");
-	myZipInstance.addDirectory("/root/dir1", "/");
+    myZipInstance.addDirectory("/home/user/dir1", "/");
 
 	RESULT:
-	Adds and encrypts the files in /root/dir1, creating the following zip structure:
+    Adds and encrypts the files in /home/user/dir1, creating the following zip structure:
 
-	/dir1/
 	/dir1/file1.1
 	/dir1/file1.2
 	/dir1/dir1.1/
 	/dir1/dir1.2/file1.2.1
+
+    EXAMPLE 5:
+    myZipInstance.addDirectory("/home/user/dir1", Zip::IgnoreRoot);
+
+    RESULT:
+    Adds the files in /home/user/dir1 but doesn't create the top level
+    directory:
+
+    file1.1
+    file1.2
+    dir1.1/
+    dir1.2/file1.2.1
+
+    EXAMPLE 5:
+    myZipInstance.addDirectory("/home/user/dir1", "data/backup", Zip::IgnoreRoot);
+
+    RESULT:
+    Adds the files in /home/user/dir1 but uses "data/backup" as top level
+    directory instead of "dir1":
+
+    data/backup/file1.1
+    data/backup/file1.2
+    data/backup/dir1.1/
+    data/backup/dir1.2/file1.2.1
 
 	\endverbatim
 */
@@ -319,7 +338,7 @@ Zip::ErrorCode ZipPrivate::addDirectory(const QString& path, const QString& root
         actualRoot.append(absolutePath);
     }
 
-    const bool skipDirName = !hierarchyLevel && path_noroot && actualRoot.isEmpty();
+    const bool skipDirName = !hierarchyLevel && path_noroot;
     if (!path_ignore && !skipDirName) {
         actualRoot.append(QDir(current.absoluteFilePath()).dirName());
         actualRoot.append(QLatin1String("/"));
@@ -1151,18 +1170,38 @@ void Zip::setArchiveComment(const QString& comment)
 }
 
 /*!
+    Convenience method, same as calling Zip::addDirectory(const QString&,const QString&,CompressionOptions,CompressionLevel)
+    with the Zip::IgnorePaths flag as compression option and an empty \p root parameter.
+
+    The result is that all files found in \p path (and in subdirectories) are
+    added to the zip file without a directory entry.
+*/
+Zip::ErrorCode Zip::addDirectoryContents(const QString& path, CompressionLevel level)
+{
+    return addDirectory(path, QString(), IgnorePaths, level);
+}
+
+/*!
+    Convenience method, same as calling Zip::addDirectory(const QString&,const QString&,CompressionOptions,CompressionLevel)
+    with the Zip::IgnorePaths flag as compression option.
+
+    The result is that all files found in \p path (and in subdirectories) are
+    added to the zip file without a directory entry (or within a directory
+    structure specified by \p root).
+*/
+Zip::ErrorCode Zip::addDirectoryContents(const QString& path, const QString& root, CompressionLevel level)
+{
+    return addDirectory(path, root, IgnorePaths, level);
+}
+
+/*!
 	Convenience method, same as calling
 	Zip::addDirectory(const QString&,const QString&,CompressionLevel)
-	with an empty \p root parameter (or with the parent directory of \p path if the
-	AbsolutePaths options is set).
-
-	The ExtractionOptions are checked in the order they are defined in the zip.h heaser file.
-	This means that the last one overwrites the previous one (if some conflict occurs), i.e.
-	Zip::IgnorePaths | Zip::AbsolutePaths would be interpreted as Zip::IgnorePaths.
+    with an empty \p root parameter and Zip::RelativePaths flag as compression option.
  */
-Zip::ErrorCode Zip::addDirectory(const QString& path, CompressionOptions options, CompressionLevel level)
+Zip::ErrorCode Zip::addDirectory(const QString& path, CompressionLevel level)
 {
-	return addDirectory(path, QString(), options, level);
+    return addDirectory(path, QString(), Zip::RelativePaths, level);
 }
 
 /*!
@@ -1172,24 +1211,6 @@ Zip::ErrorCode Zip::addDirectory(const QString& path, CompressionOptions options
 Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root, CompressionLevel level)
 {
 	return addDirectory(path, root, Zip::RelativePaths, level);
-}
-
-/*!
-	Convenience method, same as calling Zip::addDirectory(const QString&,const QString&,CompressionOptions,CompressionLevel)
-	with the Zip::IgnorePaths flag as compression option and an empty \p root parameter.
-*/
-Zip::ErrorCode Zip::addDirectoryContents(const QString& path, CompressionLevel level)
-{
-	return addDirectory(path, QString(), IgnorePaths, level);
-}
-
-/*!
-	Convenience method, same as calling Zip::addDirectory(const QString&,const QString&,CompressionOptions,CompressionLevel)
-	with the Zip::IgnorePaths flag as compression option.
-*/
-Zip::ErrorCode Zip::addDirectoryContents(const QString& path, const QString& root, CompressionLevel level)
-{
-	return addDirectory(path, root, IgnorePaths, level);
 }
 
 /*!
@@ -1206,26 +1227,74 @@ Zip::ErrorCode Zip::addDirectoryContents(const QString& path, const QString& roo
 Zip::ErrorCode Zip::addDirectory(const QString& path, const QString& root,
     CompressionOptions options, CompressionLevel level)
 {
-    qt_noop();
     return d->addDirectory(path, root, options, level);
 }
 
-//! Not implemented
-Zip::ErrorCode Zip::addFile(const QString& path,
+/*!
+    Convenience method, same as calling Zip::addFile(const QString&,const QString&,CompressionOptions,CompressionLevel)
+    with an empty \p root parameter and Zip::RelativePaths as compression option.
+ */
+Zip::ErrorCode Zip::addFile(const QString& path, CompressionLevel level)
+{
+    return addFile(path, QString(), Zip::RelativePaths, level);
+}
+
+/*!
+    Convenience method, same as calling Zip::addFile(const QString&,const QString&,CompressionOptions,CompressionLevel)
+    with the Zip::RelativePaths flag as compression option.
+ */
+Zip::ErrorCode Zip::addFile(const QString& path, const QString& root,
+    CompressionLevel level)
+{
+    return addFile(path, root, Zip::RelativePaths, level);
+}
+
+/*!
+    Adds the file at \p path to the archive, using \p root as name for the root folder.
+
+    The ExtractionOptions are checked in the order they are defined in the zip.h heaser file.
+    This means that the last one overwrites the previous one (if some conflict occurs), i.e.
+    Zip::IgnorePaths | Zip::AbsolutePaths would be interpreted as Zip::IgnorePaths.
+
+    The \p root parameter is ignored with the Zip::IgnorePaths parameter and used as path prefix (a trailing /
+    is always added as directory separator!) otherwise (even with Zip::AbsolutePaths set!).
+*/
+Zip::ErrorCode Zip::addFile(const QString& path, const QString& root,
     CompressionOptions options, CompressionLevel level)
 {
     return InternalError;
 }
 
-//! Not implemented
-Zip::ErrorCode Zip::addFile(const QString& path, const QString& root,
-    CompressionLevel level)
+/*!
+    Convenience method, same as calling Zip::addFiles(const QStringList&,const QString&,CompressionOptions,CompressionLevel)
+    with an empty \p root parameter and Zip::RelativePaths as compression option.
+ */
+Zip::ErrorCode Zip::addFiles(const QStringList& paths, CompressionLevel level)
 {
-    return InternalError;
+    return addFiles(paths, QString(), Zip::RelativePaths, level);
 }
 
-//! Not implemented
-Zip::ErrorCode Zip::addFile(const QString& path, const QString& root,
+/*!
+    Convenience method, same as calling Zip::addFiles(const QStringList&,const QString&,CompressionOptions,CompressionLevel)
+    with the Zip::RelativePaths flag as compression option.
+ */
+Zip::ErrorCode Zip::addFiles(const QStringList& paths, const QString& root,
+    CompressionLevel level)
+{
+    return addFiles(paths, root, Zip::RelativePaths, level);
+}
+
+/*!
+    Adds the files in \p paths to the archive, using \p root as name for the root folder.
+
+    The ExtractionOptions are checked in the order they are defined in the zip.h heaser file.
+    This means that the last one overwrites the previous one (if some conflict occurs), i.e.
+    Zip::IgnorePaths | Zip::AbsolutePaths would be interpreted as Zip::IgnorePaths.
+
+    The \p root parameter is ignored with the Zip::IgnorePaths parameter and used as path prefix (a trailing /
+    is always added as directory separator!) otherwise (even with Zip::AbsolutePaths set!).
+*/
+Zip::ErrorCode Zip::addFiles(const QStringList& paths, const QString& root,
     CompressionOptions options, CompressionLevel level)
 {
     return InternalError;

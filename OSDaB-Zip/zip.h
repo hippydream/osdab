@@ -103,16 +103,33 @@ public:
 	QString archiveComment() const;
 	void setArchiveComment(const QString& comment);
 
-	ErrorCode addDirectoryContents(const QString& path, CompressionLevel level = AutoFull);
-	ErrorCode addDirectoryContents(const QString& path, const QString& root, CompressionLevel level = AutoFull);
+    ErrorCode addDirectoryContents(const QString& path,
+        CompressionLevel level = AutoFull);
+    ErrorCode addDirectoryContents(const QString& path, const QString& root,
+        CompressionLevel level = AutoFull);
 
-	ErrorCode addDirectory(const QString& path, CompressionOptions options = RelativePaths, CompressionLevel level = AutoFull);
-	ErrorCode addDirectory(const QString& path, const QString& root, CompressionLevel level = AutoFull);
-	ErrorCode addDirectory(const QString& path, const QString& root, CompressionOptions options = RelativePaths, CompressionLevel level = AutoFull);
+    ErrorCode addDirectory(const QString& path,
+        CompressionLevel level = AutoFull);
+    ErrorCode addDirectory(const QString& path, const QString& root,
+        CompressionLevel level = AutoFull);
+    ErrorCode addDirectory(const QString& path, const QString& root,
+        CompressionOptions options, CompressionLevel level = AutoFull);
 
-    ErrorCode addFile(const QString& path, CompressionOptions options = RelativePaths, CompressionLevel level = AutoFull);
-    ErrorCode addFile(const QString& path, const QString& root, CompressionLevel level = AutoFull);
-    ErrorCode addFile(const QString& path, const QString& root, CompressionOptions options = RelativePaths, CompressionLevel level = AutoFull);
+    ErrorCode addFile(const QString& path,
+        CompressionLevel level = AutoFull);
+    ErrorCode addFile(const QString& path, const QString& root,
+        CompressionLevel level = AutoFull);
+    ErrorCode addFile(const QString& path, const QString& root,
+        CompressionOptions options,
+        CompressionLevel level = AutoFull);
+
+    ErrorCode addFiles(const QStringList& paths,
+        CompressionLevel level = AutoFull);
+    ErrorCode addFiles(const QStringList& paths, const QString& root,
+        CompressionLevel level = AutoFull);
+    ErrorCode addFiles(const QStringList& paths, const QString& root,
+        CompressionOptions options,
+        CompressionLevel level = AutoFull);
 
 	ErrorCode closeArchive();
 
