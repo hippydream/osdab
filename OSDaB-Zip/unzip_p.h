@@ -118,6 +118,10 @@ private slots:
     void deviceDestroyed(QObject*);
 
 private:
+    UnZip::ErrorCode extractStoredFile(const quint32 szComp, quint32** keys,
+        quint32& myCRC, QIODevice* outDev, UnZip::ExtractionOptions options);
+    UnZip::ErrorCode inflateFile(const quint32 szComp, quint32** keys,
+        quint32& myCRC, QIODevice* outDev, UnZip::ExtractionOptions options);
     void do_closeArchive();
 };
 

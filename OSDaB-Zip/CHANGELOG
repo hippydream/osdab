@@ -2,7 +2,9 @@ Website: http://osdab.42cows.org/
 Google Code project page: http://code.google.com/p/osdab
 
 2012-01-29 - Fixed writing of files with no compression
-  (thanks to Anton Rekshinsky for the bug report).
+  (thanks to Anton Rekshinsky for the bug report);
+  added UnZip::verifyArchive();
+  added -v command line flag to sample application.
 2012-01-08 - Implemented Zip::IgnoreRoot flag; added addFile() and addFiles()
   convenience methods;
   added Zip::CheckForDuplicates and Zip::SkipBadFiles flags;

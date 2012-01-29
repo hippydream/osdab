@@ -73,6 +73,7 @@
 /*! \enum UnZip::ExtractionOptions Some options for the file extraction methods.
  \value UnZip::ExtractPaths Default. Does not ignore the path of the zipped files.
  \value UnZip::SkipPaths Default. Ignores the path of the zipped files and extracts them all to the same root directory.
+ \value UnZip::VerifyOnly Doesn't actually extract files.
 */
 
 //! Local header size (excluding signature, excluding variable length fields)
@@ -660,18 +661,22 @@ void UnzipPrivate::do_closeArchive()
 }
 
 //! \internal
-UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP& entry, const QDir& dir, 
-UnZip::ExtractionOptions options)
+UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP& entry,
+    const QDir& dir, UnZip::ExtractionOptions options)
 {
     QString name(path);
     QString dirname;
     QString directory;
 
-    int pos = name.lastIndexOf('/');
+    const bool verify = (options & UnZip::VerifyOnly);
+    const int pos = name.lastIndexOf('/');
 
     // This entry is for a directory
     if (pos == name.length() - 1) {
-        if (options.testFlag(UnZip::SkipPaths))
+        if (verify)
+            return UnZip::Ok;
+
+        if (options & UnZip::SkipPaths)
             return UnZip::Ok;
 
         directory = QString("%1/%2").arg(dir.absolutePath()).arg(QDir::cleanPath(name));
@@ -684,10 +689,14 @@ UnZip::ExtractionOptions options)
     }
 
     // Extract path from entry
+    if (verify) {
+        return extractFile(path, entry, 0, options);
+    }
+
     if (pos > 0) {
         // get directory part
         dirname = name.left(pos);
-        if (options.testFlag(UnZip::SkipPaths)) {
+        if (options & UnZip::SkipPaths) {
             directory = dir.absolutePath();
         } else {
             directory = QString("%1/%2").arg(dir.absolutePath()).arg(QDir::cleanPath(dirname));
@@ -704,13 +713,10 @@ UnZip::ExtractionOptions options)
     name = QString("%1/%2").arg(directory).arg(name);
 
     QFile outFile(name);
-
     if (!outFile.open(QIODevice::WriteOnly)) {
         qDebug() << QString("Unable to open %1 for writing").arg(name);
         return UnZip::OpenFailed;
     }
-
-    //! \todo Set creation/last_modified date/time
 
     UnZip::ErrorCode ec = extractFile(path, entry, &outFile, options);
     outFile.close();
@@ -730,11 +736,139 @@ UnZip::ExtractionOptions options)
 }
 
 //! \internal
-UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP& entry, QIODevice* outDev, UnZip::ExtractionOptions options)
+UnZip::ErrorCode UnzipPrivate::extractStoredFile(
+    const quint32 szComp, quint32** keys, quint32& myCRC, QIODevice* outDev,
+    UnZip::ExtractionOptions options)
 {
+    const bool verify = (options & UnZip::VerifyOnly);
+    const bool isEncrypted = keys != 0;
+
+    uInt rep = szComp / UNZIP_READ_BUFFER;
+    uInt rem = szComp % UNZIP_READ_BUFFER;
+    uInt cur = 0;
+
+    // extract data
+    qint64 read;
+    quint64 tot = 0;
+
+    while ( (read = device->read(buffer1, cur < rep ? UNZIP_READ_BUFFER : rem)) > 0 ) {
+        if (isEncrypted)
+            decryptBytes(*keys, buffer1, read);
+
+        myCRC = crc32(myCRC, uBuffer, read);
+        if (!verify) {
+            if (outDev->write(buffer1, read) != read)
+                return UnZip::WriteFailed;
+        }
+
+        cur++;
+        tot += read;
+        if (tot == szComp)
+            break;
+    }
+
+    return (read < 0)
+        ? UnZip::ReadFailed
+        : UnZip::Ok;
+}
+
+//! \internal
+UnZip::ErrorCode UnzipPrivate::inflateFile(
+    const quint32 szComp, quint32** keys, quint32& myCRC, QIODevice* outDev,
+    UnZip::ExtractionOptions options)
+{
+    const bool verify = (options & UnZip::VerifyOnly);
+    const bool isEncrypted = keys != 0;
+    Q_ASSERT(verify ? true : outDev != 0);
+
+    uInt rep = szComp / UNZIP_READ_BUFFER;
+    uInt rem = szComp % UNZIP_READ_BUFFER;
+    uInt cur = 0;
+
+    // extract data
+    qint64 read;
+    quint64 tot = 0;
+
+    /* Allocate inflate state */
+    z_stream zstr;
+    zstr.zalloc = Z_NULL;
+    zstr.zfree = Z_NULL;
+    zstr.opaque = Z_NULL;
+    zstr.next_in = Z_NULL;
+    zstr.avail_in = 0;
+
+    int zret;
+
+    // Use inflateInit2 with negative windowBits to get raw decompression
+    if ( (zret = inflateInit2_(&zstr, -MAX_WBITS, ZLIB_VERSION, sizeof(z_stream))) != Z_OK )
+        return UnZip::ZlibError;
+
+    int szDecomp;
+
+    // Decompress until deflate stream ends or end of file
+    do {
+        read = device->read(buffer1, cur < rep ? UNZIP_READ_BUFFER : rem);
+        if (!read)
+            break;
+
+        if (read < 0) {
+            (void)inflateEnd(&zstr);
+            return UnZip::ReadFailed;
+        }
+
+        if (isEncrypted)
+            decryptBytes(*keys, buffer1, read);
+
+        cur++;
+        tot += read;
+
+        zstr.avail_in = (uInt) read;
+        zstr.next_in = (Bytef*) buffer1;
+
+        // Run inflate() on input until output buffer not full
+        do {
+            zstr.avail_out = UNZIP_READ_BUFFER;
+            zstr.next_out = (Bytef*) buffer2;;
+
+            zret = inflate(&zstr, Z_NO_FLUSH);
+
+            switch (zret) {
+            case Z_NEED_DICT:
+            case Z_DATA_ERROR:
+            case Z_MEM_ERROR:
+                inflateEnd(&zstr);
+                return UnZip::WriteFailed;
+            default:
+                ;
+            }
+
+            szDecomp = UNZIP_READ_BUFFER - zstr.avail_out;
+            if (!verify) {
+                if (outDev->write(buffer2, szDecomp) != szDecomp) {
+                    inflateEnd(&zstr);
+                    return UnZip::ZlibError;
+                }
+            }
+
+            myCRC = crc32(myCRC, (const Bytef*) buffer2, szDecomp);
+
+        } while (zstr.avail_out == 0);
+
+    } while (zret != Z_STREAM_END);
+
+    inflateEnd(&zstr);
+    return UnZip::Ok;
+}
+
+//! \internal \p outDev is null if the VerifyOnly option is set
+UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP& entry,
+    QIODevice* outDev, UnZip::ExtractionOptions options)
+{
+    const bool verify = (options & UnZip::VerifyOnly);
+
     Q_UNUSED(options);
     Q_ASSERT(device);
-    Q_ASSERT(outDev);
+    Q_ASSERT(verify ? true : outDev != 0);
 
     if (!entry.lhEntryChecked) {
         UnZip::ErrorCode ec = parseLocalHeaderRecord(path, entry);
@@ -748,9 +882,6 @@ UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP&
 
     // Encryption keys
     quint32 keys[3];
-
-    // Fix: Fabrizio Angius @ 08/07/2010: don't override szComp in the entry when the file is encrypted.
-    // Thanks to Serge Kolokolkin for the bug report.
     quint32 szComp = entry.szComp;
     if (entry.isEncrypted()) {
         UnZip::ErrorCode e = testPassword(keys, path, entry);
@@ -765,110 +896,20 @@ UnZip::ErrorCode UnzipPrivate::extractFile(const QString& path, const ZipEntryP&
     if (szComp == 0) {
         if (entry.crc != 0)
             return UnZip::Corrupted;
-
         return UnZip::Ok;
     }
 
-    uInt rep = szComp / UNZIP_READ_BUFFER;
-    uInt rem = szComp % UNZIP_READ_BUFFER;
-    uInt cur = 0;
-
-    // extract data
-    qint64 read;
-    quint64 tot = 0;
-
     quint32 myCRC = crc32(0L, Z_NULL, 0);
+    quint32* k = keys;
 
+    UnZip::ErrorCode ec = UnZip::Ok;
     if (entry.compMethod == 0) {
-        while ( (read = device->read(buffer1, cur < rep ? UNZIP_READ_BUFFER : rem)) > 0 ) {
-            if (entry.isEncrypted())
-                decryptBytes(keys, buffer1, read);
-
-            myCRC = crc32(myCRC, uBuffer, read);
-
-            if (outDev->write(buffer1, read) != read)
-                return UnZip::WriteFailed;
-
-            cur++;
-            tot += read;
-
-            if (tot == szComp)
-                break;
-        }
-
-        if (read < 0)
-            return UnZip::ReadFailed;
+        ec = extractStoredFile(szComp, entry.isEncrypted() ? &k : 0, myCRC, outDev, options);
     } else if (entry.compMethod == 8) {
-        /* Allocate inflate state */
-        z_stream zstr;
-        zstr.zalloc = Z_NULL;
-        zstr.zfree = Z_NULL;
-        zstr.opaque = Z_NULL;
-        zstr.next_in = Z_NULL;
-        zstr.avail_in = 0;
-
-        int zret;
-
-        // Use inflateInit2 with negative windowBits to get raw decompression
-        if ( (zret = inflateInit2_(&zstr, -MAX_WBITS, ZLIB_VERSION, sizeof(z_stream))) != Z_OK )
-            return UnZip::ZlibError;
-
-        int szDecomp;
-
-        // Decompress until deflate stream ends or end of file
-        do {
-            read = device->read(buffer1, cur < rep ? UNZIP_READ_BUFFER : rem);
-            if (!read)
-                break;
-
-            if (read < 0) {
-                (void)inflateEnd(&zstr);
-                return UnZip::ReadFailed;
-            }
-
-            if (entry.isEncrypted())
-                decryptBytes(keys, buffer1, read);
-
-            cur++;
-            tot += read;
-
-            zstr.avail_in = (uInt) read;
-            zstr.next_in = (Bytef*) buffer1;
-
-
-            // Run inflate() on input until output buffer not full
-            do {
-                zstr.avail_out = UNZIP_READ_BUFFER;
-                zstr.next_out = (Bytef*) buffer2;;
-
-                zret = inflate(&zstr, Z_NO_FLUSH);
-
-                switch (zret) {
-                case Z_NEED_DICT:
-                case Z_DATA_ERROR:
-                case Z_MEM_ERROR:
-                    inflateEnd(&zstr);
-                    return UnZip::WriteFailed;
-                default:
-                    ;
-                }
-
-                szDecomp = UNZIP_READ_BUFFER - zstr.avail_out;
-                if (outDev->write(buffer2, szDecomp) != szDecomp) {
-                    inflateEnd(&zstr);
-                    return UnZip::ZlibError;
-                }
-
-                myCRC = crc32(myCRC, (const Bytef*) buffer2, szDecomp);
-
-            } while (zstr.avail_out == 0);
-
-        } while (zret != Z_STREAM_END);
-
-        inflateEnd(&zstr);
+        ec = inflateFile(szComp, entry.isEncrypted() ? &k : 0, myCRC, outDev, options);
     }
 
-    if (myCRC != entry.crc)
+    if (ec == UnZip::Ok && myCRC != entry.crc)
         return UnZip::Corrupted;
 
     return UnZip::Ok;
@@ -1211,6 +1252,14 @@ QList<UnZip::ZipEntry> UnZip::entryList() const
 /*!
  Extracts the whole archive to a directory.
 */
+UnZip::ErrorCode UnZip::verifyArchive()
+{
+    return extractAll(QDir(), VerifyOnly);
+}
+
+/*!
+ Extracts the whole archive to a directory.
+*/
 UnZip::ErrorCode UnZip::extractAll(const QString& dirname, ExtractionOptions options)
 {
     return extractAll(QDir(dirname), options);
@@ -1218,6 +1267,7 @@ UnZip::ErrorCode UnZip::extractAll(const QString& dirname, ExtractionOptions opt
 
 /*!
  Extracts the whole archive to a directory.
+ Stops extraction at the first error.
 */
 UnZip::ErrorCode UnZip::extractAll(const QDir& dir, ExtractionOptions options)
 {
@@ -1228,37 +1278,45 @@ UnZip::ErrorCode UnZip::extractAll(const QDir& dir, ExtractionOptions options)
     if (!d->headers)
         return Ok;
 
-    bool end = false;
-    for (QMap<QString,ZipEntryP*>::Iterator itr = d->headers->begin(); itr != d->headers->end(); ++itr) {
-        ZipEntryP* entry = itr.value();
+    ErrorCode ec = Ok;
+
+    QMap<QString,ZipEntryP*>::ConstIterator it = d->headers->constBegin();
+    const QMap<QString,ZipEntryP*>::ConstIterator end = d->headers->constEnd();
+    while (it != end) {
+        ZipEntryP* entry = it.value();
         Q_ASSERT(entry != 0);
-
-        if ((entry->isEncrypted()) && d->skipAllEncrypted)
+        if ((entry->isEncrypted()) && d->skipAllEncrypted) {
+            ++it;
             continue;
+        }
 
-        switch (d->extractFile(itr.key(), *entry, dir, options)) {
+        bool skip = false;
+        ec = d->extractFile(it.key(), *entry, dir, options);
+        switch (ec) {
         case Corrupted:
-            qDebug() << "Removing corrupted entry" << itr.key();
-            d->headers->erase(itr++);
-            if (itr == d->headers->end())
-                end = true;
+            qDebug() << "Corrupted entry" << it.key();
             break;
         case CreateDirFailed:
             break;
         case Skip:
+            skip = true;
             break;
         case SkipAll:
+            skip = true;
             d->skipAllEncrypted = true;
             break;
         default:
             ;
         }
 
-        if (end)
+        if (ec != Ok && !skip) {
             break;
+        }
+
+        ++it;
     }
 
-    return Ok;
+    return ec;
 }
 
 /*!

@@ -72,11 +72,10 @@ public:
 	};
 
 	enum ExtractionOption
-	{
-		//! Extracts paths (default)
-		ExtractPaths = 0x0001,
-		//! Ignores paths and extracts all the files to the same directory
-		SkipPaths = 0x0002
+    {
+        ExtractPaths = 0x0001,
+        SkipPaths = 0x0002,
+        VerifyOnly = 0x0004
 	};
 	Q_DECLARE_FLAGS(ExtractionOptions, ExtractionOption)
 
@@ -126,6 +125,8 @@ public:
 
 	QStringList fileList() const;
 	QList<ZipEntry> entryList() const;
+
+    ErrorCode verifyArchive();
 
 	ErrorCode extractAll(const QString& dirname, ExtractionOptions options = ExtractPaths);
 	ErrorCode extractAll(const QDir& dir, ExtractionOptions options = ExtractPaths);
