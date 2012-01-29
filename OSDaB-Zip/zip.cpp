@@ -555,6 +555,19 @@ Zip::ErrorCode ZipPrivate::deflateFile(const QFileInfo& fileInfo, quint32& crc, 
         return Zip::OpenFailed;
     }
 
+    switch (level) {
+    case Zip::AutoCPU:
+        level = Zip::Deflate5;
+        break;
+    case Zip::AutoMIME:
+        level = detectCompressionByMime(fileInfo.completeSuffix().toLower());
+        break;
+    case Zip::AutoFull:
+        level = detectCompressionByMime(fileInfo.completeSuffix().toLower());
+        break;
+    default: ;
+    }
+
     const Zip::ErrorCode ec = level == Zip::Store
         ? storeFile(path, file, crc, written, keys)
         : compressFile(path, file, crc, written, level, keys);
@@ -700,34 +713,19 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 
     // Directory entry
     const bool dirOnly = file.isDir();
-    if (dirOnly) {
+    if (dirOnly || file.size() < ZIP_COMPRESSION_THRESHOLD) {
 		level = Zip::Store;
-    } else {
-		entryName.append(file.fileName());
+    }
 
-        if (file.size() < ZIP_COMPRESSION_THRESHOLD) {
-			level = Zip::Store;
-        } else switch (level) {
-			case Zip::AutoCPU:
-                level = Zip::Deflate5;
-				break;
-			case Zip::AutoMIME:
-                level = detectCompressionByMime(file.completeSuffix().toLower());
-				break;
-			case Zip::AutoFull:
-                level = detectCompressionByMime(file.completeSuffix().toLower());
-				break;
-			default:
-				;
-			}
-	}
+    if (!dirOnly) {
+		entryName.append(file.fileName());
+    }
 
 	// create header and store it to write a central directory later
     QScopedPointer<ZipEntryP> h(new ZipEntryP);
     h->absolutePath = file.absoluteFilePath().toLower();
     h->fileSize = file.size();
 
-    level = Zip::Store; // DEBUG........................................
     h->compMethod = (level == Zip::Store) ? 0 : 0x0008;
 
 	// Set encryption bit and set the data descriptor bit
