@@ -545,58 +545,190 @@ Zip::ErrorCode ZipPrivate::addFiles(const QStringList& files, const QString& roo
     return ec;
 }
 
+//! \internal \p file must be a file and not a directory.
+Zip::ErrorCode ZipPrivate::deflateFile(const QFileInfo& fileInfo, quint32& crc, qint64& written, int level, quint32** keys)
+{
+    const QString path = fileInfo.absoluteFilePath();
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qDebug() << QString("An error occurred while opening %1").arg(path);
+        return Zip::OpenFailed;
+    }
+
+    const Zip::ErrorCode ec = level == Zip::Store
+        ? storeFile(path, file, crc, written, keys)
+        : compressFile(path, file, crc, written, level, keys);
+
+    file.close();
+    return ec;
+}
+
+//! \internal
+Zip::ErrorCode ZipPrivate::storeFile(const QString& path, QIODevice& file, quint32& crc, qint64& totalWritten, quint32** keys)
+{
+    Q_UNUSED(path);
+
+    qint64 read = 0;
+    qint64 written = 0;
+
+    const bool encrypt = keys != 0;
+
+    totalWritten = 0;
+    crc = crc32(0L, Z_NULL, 0);
+
+    while ( (read = file.read(buffer1, ZIP_READ_BUFFER)) > 0 ) {
+        crc = crc32(crc, uBuffer, read);
+        if (encrypt)
+            encryptBytes(*keys, buffer1, read);
+        written = device->write(buffer1, read);
+        totalWritten += written;
+        if (written != read) {
+            return Zip::WriteFailed;
+        }
+    }
+
+    return Zip::Ok;
+}
+
+//! \internal
+Zip::ErrorCode ZipPrivate::compressFile(const QString& path, QIODevice& file,
+    quint32& crc, qint64& totalWritten, int level, quint32** keys)
+{
+    qint64 read = 0;
+    qint64 written = 0;
+
+    qint64 totRead = 0;
+    qint64 toRead = file.size();
+
+    const bool encrypt = keys != 0;
+
+    totalWritten = 0;
+    crc = crc32(0L, Z_NULL, 0);
+
+    z_stream zstr;
+
+    // Initialize zalloc, zfree and opaque before calling the init function
+    zstr.zalloc = Z_NULL;
+    zstr.zfree = Z_NULL;
+    zstr.opaque = Z_NULL;
+
+    int zret;
+
+    // Use deflateInit2 with negative windowBits to get raw compression
+    if ((zret = deflateInit2_(
+            &zstr,
+            (int)level, // compression level
+            Z_DEFLATED, // method
+            -MAX_WBITS, // windowBits
+            8, // memLevel
+            Z_DEFAULT_STRATEGY, // strategy
+            ZLIB_VERSION,
+            sizeof(z_stream)
+        )) != Z_OK ) {
+        qDebug() << "Could not initialize zlib for compression";
+        return Zip::ZlibError;
+    }
+
+    qint64 compressed;
+    int flush = Z_NO_FLUSH;
+    do {
+        read = file.read(buffer1, ZIP_READ_BUFFER);
+        totRead += read;
+        if (!read)
+            break;
+
+        if (read < 0) {
+            deflateEnd(&zstr);
+            qDebug() << QString("Error while reading %1").arg(path);
+            return Zip::ReadFailed;
+        }
+
+        crc = crc32(crc, uBuffer, read);
+
+        zstr.next_in = (Bytef*) buffer1;
+        zstr.avail_in = (uInt)read;
+
+        // Tell zlib if this is the last chunk we want to encode
+        // by setting the flush parameter to Z_FINISH
+        flush = (totRead == toRead) ? Z_FINISH : Z_NO_FLUSH;
+
+        // Run deflate() on input until output buffer not full
+        // finish compression if all of source has been read in
+        do {
+            zstr.next_out = (Bytef*) buffer2;
+            zstr.avail_out = ZIP_READ_BUFFER;
+
+            zret = deflate(&zstr, flush);
+            // State not clobbered
+            Q_ASSERT(zret != Z_STREAM_ERROR);
+
+            // Write compressed data to file and empty buffer
+            compressed = ZIP_READ_BUFFER - zstr.avail_out;
+
+            if (encrypt)
+                encryptBytes(*keys, buffer2, compressed);
+
+            written = device->write(buffer2, compressed);
+            totalWritten += written;
+
+            if (written != compressed) {
+                deflateEnd(&zstr);
+                qDebug() << QString("Error while writing %1").arg(path);
+                return Zip::WriteFailed;
+            }
+
+        } while (zstr.avail_out == 0);
+
+        // All input will be used
+        Q_ASSERT(zstr.avail_in == 0);
+
+    } while (flush != Z_FINISH);
+
+    // Stream will be complete
+    Q_ASSERT(zret == Z_STREAM_END);
+    deflateEnd(&zstr);
+
+    return Zip::Ok;
+}
+
 //! \internal Writes a new entry in the zip file.
 Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& root, Zip::CompressionLevel level)
 {
-	//! \todo Automatic level detection (cpu, extension & file size)
+    // entryName contains the path as it should be written
+    // in the zip file records
+    QString entryName = root;
 
-	// Directories and very small files are always stored
-	// (small files would get bigger due to the compression headers overhead)
-
-	// Need this for zlib
-	bool isPNGFile = false;
-	bool dirOnly = file.isDir();
-
-	QString entryName = root;
-
-	// Directory entry
+    // Directory entry
+    const bool dirOnly = file.isDir();
     if (dirOnly) {
 		level = Zip::Store;
     } else {
 		entryName.append(file.fileName());
 
-		QString ext = file.completeSuffix().toLower();
-		isPNGFile = ext == QLatin1String("png");
-
-		if (file.size() < ZIP_COMPRESSION_THRESHOLD)
+        if (file.size() < ZIP_COMPRESSION_THRESHOLD) {
 			level = Zip::Store;
-		else
-			switch (level)
-			{
+        } else switch (level) {
 			case Zip::AutoCPU:
-				level = Zip::Deflate5;
+                level = Zip::Deflate5;
 				break;
 			case Zip::AutoMIME:
-				level = detectCompressionByMime(ext);
+                level = detectCompressionByMime(file.completeSuffix().toLower());
 				break;
 			case Zip::AutoFull:
-				level = detectCompressionByMime(ext);
+                level = detectCompressionByMime(file.completeSuffix().toLower());
 				break;
 			default:
 				;
 			}
 	}
 
-	// entryName contains the path as it should be written
-	// in the zip file records
-	// qDebug() << QString("addDir(file=%1, root=%2, entry=%3)").arg(file.absoluteFilePath(), root, entryName);
-
 	// create header and store it to write a central directory later
-	ZipEntryP* h = new ZipEntryP;
+    QScopedPointer<ZipEntryP> h(new ZipEntryP);
     h->absolutePath = file.absoluteFilePath().toLower();
     h->fileSize = file.size();
 
-	h->compMethod = (level == Zip::Store) ? 0 : 0x0008;
+    level = Zip::Store; // DEBUG........................................
+    h->compMethod = (level == Zip::Store) ? 0 : 0x0008;
 
 	// Set encryption bit and set the data descriptor bit
 	// so we can use mod time instead of crc for password check
@@ -674,14 +806,12 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 	quint32 crcOffset = h->lhOffset + ZIP_LH_OFF_CRC;
 
 	if (device->write(buffer1, ZIP_LOCAL_HEADER_SIZE) != ZIP_LOCAL_HEADER_SIZE) {
-		delete h;
-		return Zip::WriteFailed;
+        return Zip::WriteFailed;
 	}
 
 	// Write out filename
 	if (device->write(entryNameBytes) != sz) {
-		delete h;
-		return Zip::WriteFailed;
+        return Zip::WriteFailed;
 	}
 
 	// Encryption keys
@@ -722,131 +852,19 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 
 		// Write out encryption header
 		if (device->write(buffer1, ZIP_LOCAL_ENC_HEADER_SIZE) != ZIP_LOCAL_ENC_HEADER_SIZE) {
-			delete h;
-			return Zip::WriteFailed;
+            return Zip::WriteFailed;
 		}
 	}
 
-	qint64 written = 0;
-	quint32 crc = crc32(0L, Z_NULL, 0);
+    quint32 crc = 0;
+    qint64 written = 0;
 
-	if (!dirOnly) {
-		QFile actualFile(file.absoluteFilePath());
-		if (!actualFile.open(QIODevice::ReadOnly)) {
-			qDebug() << QString("An error occurred while opening %1").arg(file.absoluteFilePath());
-			return Zip::OpenFailed;
-		}
-
-		// Write file data
-		qint64 read = 0;
-		qint64 totRead = 0;
-		qint64 toRead = actualFile.size();
-
-		if (level == Zip::Store) {
-			while ( (read = actualFile.read(buffer1, ZIP_READ_BUFFER)) > 0 ) {
-				crc = crc32(crc, uBuffer, read);
-				if (encrypt)
-					encryptBytes(keys, buffer1, read);
-				if ( (written = device->write(buffer1, read)) != read ) {
-					actualFile.close();
-					delete h;
-					return Zip::WriteFailed;
-				}
-			}
-		} else {
-			z_stream zstr;
-
-			// Initialize zalloc, zfree and opaque before calling the init function
-			zstr.zalloc = Z_NULL;
-			zstr.zfree = Z_NULL;
-			zstr.opaque = Z_NULL;
-
-			int zret;
-
-			// Use deflateInit2 with negative windowBits to get raw compression
-			if ((zret = deflateInit2_(
-					&zstr,
-					(int)level,
-					Z_DEFLATED,
-					-MAX_WBITS,
-					8,
-					isPNGFile ? Z_RLE : Z_DEFAULT_STRATEGY,
-					ZLIB_VERSION,
-					sizeof(z_stream)
-				)) != Z_OK ) {
-				actualFile.close();
-				qDebug() << "Could not initialize zlib for compression";
-				delete h;
-				return Zip::ZlibError;
-			}
-
-			qint64 compressed;
-			int flush = Z_NO_FLUSH;
-			do {
-				read = actualFile.read(buffer1, ZIP_READ_BUFFER);
-				totRead += read;
-
-				if (!read)
-					break;
-
-				if (read < 0) {
-					actualFile.close();
-					deflateEnd(&zstr);
-					qDebug() << QString("Error while reading %1").arg(file.absoluteFilePath());
-					delete h;
-					return Zip::ReadFailed;
-				}
-
-				crc = crc32(crc, uBuffer, read);
-
-				zstr.next_in = (Bytef*) buffer1;
-				zstr.avail_in = (uInt)read;
-
-				// Tell zlib if this is the last chunk we want to encode
-				// by setting the flush parameter to Z_FINISH
-				flush = (totRead == toRead) ? Z_FINISH : Z_NO_FLUSH;
-
-				// Run deflate() on input until output buffer not full
-				// finish compression if all of source has been read in
-        		do {
-					zstr.next_out = (Bytef*) buffer2;
-					zstr.avail_out = ZIP_READ_BUFFER;
-
-					zret = deflate(&zstr, flush);
-					// State not clobbered
-					Q_ASSERT(zret != Z_STREAM_ERROR);
-
-					// Write compressed data to file and empty buffer
-					compressed = ZIP_READ_BUFFER - zstr.avail_out;
-
-					if (encrypt)
-						encryptBytes(keys, buffer2, compressed);
-
-					if (device->write(buffer2, compressed) != compressed) {
-						deflateEnd(&zstr);
-						actualFile.close();
-						qDebug() << QString("Error while writing %1").arg(file.absoluteFilePath());
-						delete h;
-						return Zip::WriteFailed;
-					}
-
-					written += compressed;
-
-				} while (zstr.avail_out == 0);
-
-				// All input will be used
-				Q_ASSERT(zstr.avail_in == 0);
-
-			} while (flush != Z_FINISH);
-
-			// Stream will be complete
-			Q_ASSERT(zret == Z_STREAM_END);
-
-			deflateEnd(&zstr);
-
-		} // if (level != STORE)
-
-		actualFile.close();
+    if (!dirOnly) {
+        quint32* k = keys;
+        const Zip::ErrorCode ec = deflateFile(file, crc, written, level, encrypt ? &k : 0);
+        if (ec != Zip::Ok)
+            return ec;
+        Q_ASSERT(!h.isNull());
 	}
 
 	// Store end of entry offset
@@ -854,8 +872,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 
 	// Update crc and compressed size in local header
 	if (!device->seek(crcOffset)) {
-		delete h;
-		return Zip::SeekFailed;
+        return Zip::SeekFailed;
 	}
 
 	h->crc = dirOnly ? 0 : crc;
@@ -864,13 +881,11 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 	setULong(h->crc, buffer1, 0);
 	setULong(h->szComp, buffer1, 4);
 	if ( device->write(buffer1, 8) != 8) {
-		delete h;
-		return Zip::WriteFailed;
+        return Zip::WriteFailed;
 	}
 
 	// Seek to end of entry
-	if (!device->seek(current)) {
-		delete h;
+    if (!device->seek(current)) {
 		return Zip::SeekFailed;
 	}
 
@@ -892,13 +907,12 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 		// Uncompressed size
 		setULong(h->szUncomp, buffer1, ZIP_DD_OFF_USIZE);
 
-		if (device->write(buffer1, ZIP_DD_SIZE_WS) != ZIP_DD_SIZE_WS) {
-			delete h;
+        if (device->write(buffer1, ZIP_DD_SIZE_WS) != ZIP_DD_SIZE_WS) {
 			return Zip::WriteFailed;
 		}
 	}
 
-	headers->insert(entryName, h);
+    headers->insert(entryName, h.take());
 	return Zip::Ok;
 }
 
@@ -959,34 +973,9 @@ void ZipPrivate::encryptBytes(quint32* keys, char* buffer, qint64 read)
 //! \internal Detects the best compression level for a given file extension.
 Zip::CompressionLevel ZipPrivate::detectCompressionByMime(const QString& ext)
 {
-	// files really hard to compress
-	if ((ext == QLatin1String("png")) ||
-		(ext == QLatin1String("jpg")) ||
-		(ext == QLatin1String("jpeg")) ||
-		(ext == QLatin1String("mp3")) ||
-		(ext == QLatin1String("ogg")) ||
-		(ext == QLatin1String("ogm")) ||
-		(ext == QLatin1String("avi")) ||
-		(ext == QLatin1String("mov")) ||
-		(ext == QLatin1String("rm")) ||
-		(ext == QLatin1String("ra")) ||
-		(ext == QLatin1String("zip")) ||
-		(ext == QLatin1String("rar")) ||
-		(ext == QLatin1String("bz2")) ||
-		(ext == QLatin1String("gz")) ||
-		(ext == QLatin1String("7z")) ||
-		(ext == QLatin1String("z")) ||
-		(ext == QLatin1String("jar"))
-	) return Zip::Store;
-
-	// files slow and hard to compress
-	if ((ext == QLatin1String("exe")) ||
-		(ext == QLatin1String("bin")) ||
-		(ext == QLatin1String("rpm")) ||
-		(ext == QLatin1String("deb"))
-	) return Zip::Deflate2;
-
-	return Zip::Deflate9;
+    Q_UNUSED(ext);
+    //! \todo Implement detectCompressionByMime()
+    return Zip::Deflate5;
 }
 
 /*!
