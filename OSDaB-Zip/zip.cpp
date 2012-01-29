@@ -43,6 +43,12 @@
 // You can remove this #include if you replace the qDebug() statements.
 #include <QtCore/QtDebug>
 
+
+/*! #define OSDAB_ZIP_NO_PNG_RLE to disable the use of Z_RLE compression strategy with
+    PNG files (achieves slightly better compression levels according to the authors).
+*/
+// #define OSDAB_ZIP_NO_PNG_RLE
+
 //! Local header size (including signature, excluding variable length fields)
 #define ZIP_LOCAL_HEADER_SIZE 30
 //! Encryption header size
@@ -604,6 +610,18 @@ Zip::ErrorCode ZipPrivate::storeFile(const QString& path, QIODevice& file, quint
 }
 
 //! \internal
+int ZipPrivate::compressionStrategy(const QString& path, QIODevice& file) const
+{
+    Q_UNUSED(file);
+
+#ifndef OSDAB_ZIP_NO_PNG_RLE
+    return Z_DEFAULT_STRATEGY;
+#endif
+    const bool isPng = path.endsWith(QLatin1String("png"), Qt::CaseInsensitive);
+    return isPng ? Z_RLE : Z_DEFAULT_STRATEGY;
+}
+
+//! \internal
 Zip::ErrorCode ZipPrivate::compressFile(const QString& path, QIODevice& file,
     quint32& crc, qint64& totalWritten, int level, quint32** keys)
 {
@@ -614,6 +632,7 @@ Zip::ErrorCode ZipPrivate::compressFile(const QString& path, QIODevice& file,
     qint64 toRead = file.size();
 
     const bool encrypt = keys != 0;
+    const int strategy = compressionStrategy(path, file);
 
     totalWritten = 0;
     crc = crc32(0L, Z_NULL, 0);
@@ -634,7 +653,7 @@ Zip::ErrorCode ZipPrivate::compressFile(const QString& path, QIODevice& file,
             Z_DEFLATED, // method
             -MAX_WBITS, // windowBits
             8, // memLevel
-            Z_DEFAULT_STRATEGY, // strategy
+            strategy,
             ZLIB_VERSION,
             sizeof(z_stream)
         )) != Z_OK ) {

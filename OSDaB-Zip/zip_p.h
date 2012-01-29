@@ -109,6 +109,7 @@ private slots:
     void deviceDestroyed(QObject*);
 
 private:
+    int compressionStrategy(const QString& path, QIODevice& file) const;
     Zip::ErrorCode deflateFile(const QFileInfo& fileInfo, quint32& crc, qint64& written, int level, quint32** keys);
     Zip::ErrorCode storeFile(const QString& path, QIODevice& file, quint32& crc, qint64& written, quint32** keys);
     Zip::ErrorCode compressFile(const QString& path, QIODevice& file, quint32& crc, qint64& written, int level, quint32** keys);
