@@ -110,9 +110,12 @@ private slots:
 
 private:
     int compressionStrategy(const QString& path, QIODevice& file) const;
-    Zip::ErrorCode deflateFile(const QFileInfo& fileInfo, quint32& crc, qint64& written, int level, quint32** keys);
-    Zip::ErrorCode storeFile(const QString& path, QIODevice& file, quint32& crc, qint64& written, quint32** keys);
-    Zip::ErrorCode compressFile(const QString& path, QIODevice& file, quint32& crc, qint64& written, int level, quint32** keys);
+    Zip::ErrorCode deflateFile(const QFileInfo& fileInfo,
+        quint32& crc, qint64& written, Zip::CompressionLevel& level, quint32** keys);
+    Zip::ErrorCode storeFile(const QString& path, QIODevice& file,
+        quint32& crc, qint64& written, quint32** keys);
+    Zip::ErrorCode compressFile(const QString& path, QIODevice& file,
+        quint32& crc, qint64& written, Zip::CompressionLevel level, quint32** keys);
     Zip::ErrorCode do_closeArchive();
     Zip::ErrorCode writeEntry(const QString& fileName, const ZipEntryP* h, quint32& szCentralDir);
     Zip::ErrorCode writeCentralDir(quint32 offCentralDir, quint32 szCentralDir);

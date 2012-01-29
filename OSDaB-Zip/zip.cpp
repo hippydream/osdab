@@ -552,7 +552,8 @@ Zip::ErrorCode ZipPrivate::addFiles(const QStringList& files, const QString& roo
 }
 
 //! \internal \p file must be a file and not a directory.
-Zip::ErrorCode ZipPrivate::deflateFile(const QFileInfo& fileInfo, quint32& crc, qint64& written, int level, quint32** keys)
+Zip::ErrorCode ZipPrivate::deflateFile(const QFileInfo& fileInfo,
+    quint32& crc, qint64& written, Zip::CompressionLevel& level, quint32** keys)
 {
     const QString path = fileInfo.absoluteFilePath();
     QFile file(path);
@@ -574,7 +575,7 @@ Zip::ErrorCode ZipPrivate::deflateFile(const QFileInfo& fileInfo, quint32& crc, 
     default: ;
     }
 
-    const Zip::ErrorCode ec = level == Zip::Store
+    const Zip::ErrorCode ec = (level == Zip::Store)
         ? storeFile(path, file, crc, written, keys)
         : compressFile(path, file, crc, written, level, keys);
 
@@ -583,7 +584,8 @@ Zip::ErrorCode ZipPrivate::deflateFile(const QFileInfo& fileInfo, quint32& crc, 
 }
 
 //! \internal
-Zip::ErrorCode ZipPrivate::storeFile(const QString& path, QIODevice& file, quint32& crc, qint64& totalWritten, quint32** keys)
+Zip::ErrorCode ZipPrivate::storeFile(const QString& path, QIODevice& file,
+    quint32& crc, qint64& totalWritten, quint32** keys)
 {
     Q_UNUSED(path);
 
@@ -623,7 +625,7 @@ int ZipPrivate::compressionStrategy(const QString& path, QIODevice& file) const
 
 //! \internal
 Zip::ErrorCode ZipPrivate::compressFile(const QString& path, QIODevice& file,
-    quint32& crc, qint64& totalWritten, int level, quint32** keys)
+    quint32& crc, qint64& totalWritten, Zip::CompressionLevel level, quint32** keys)
 {
     qint64 read = 0;
     qint64 written = 0;
@@ -724,7 +726,8 @@ Zip::ErrorCode ZipPrivate::compressFile(const QString& path, QIODevice& file,
 }
 
 //! \internal Writes a new entry in the zip file.
-Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& root, Zip::CompressionLevel level)
+Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& root,
+    Zip::CompressionLevel level)
 {
     // entryName contains the path as it should be written
     // in the zip file records
@@ -745,9 +748,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
     h->absolutePath = file.absoluteFilePath().toLower();
     h->fileSize = file.size();
 
-    h->compMethod = (level == Zip::Store) ? 0 : 0x0008;
-
-	// Set encryption bit and set the data descriptor bit
+    // Set encryption bit and set the data descriptor bit
 	// so we can use mod time instead of crc for password check
 	bool encrypt = !dirOnly && !password.isEmpty();
 	if (encrypt)
@@ -884,6 +885,8 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
         Q_ASSERT(!h.isNull());
 	}
 
+    h->compMethod = (level == Zip::Store) ? 0 : 0x0008;
+
 	// Store end of entry offset
 	quint32 current = device->pos();
 
@@ -987,11 +990,90 @@ void ZipPrivate::encryptBytes(quint32* keys, char* buffer, qint64 read)
 	}
 }
 
+namespace {
+struct KeywordHelper {
+    const QString needle;
+    inline KeywordHelper(const QString& keyword) : needle(keyword) {}
+};
+
+bool operator<(const KeywordHelper& helper, const char* keyword) {
+    return helper.needle.compare(QLatin1String(keyword)) < 0;
+}
+
+bool operator<(const char* keyword, const KeywordHelper& helper) {
+    return helper.needle.compare(QLatin1String(keyword)) > 0;
+}
+
+bool hasExtension(const QString& ext, const char* const* map, int max) {
+    const char* const* start = &map[0];
+    const char* const* end = &map[max - 1];
+    const char* const* kw = qBinaryFind(start, end, KeywordHelper(ext));
+    return kw != end;
+}
+}
+
 //! \internal Detects the best compression level for a given file extension.
 Zip::CompressionLevel ZipPrivate::detectCompressionByMime(const QString& ext)
 {
-    Q_UNUSED(ext);
-    //! \todo Implement detectCompressionByMime()
+    // NOTE: Keep the  MAX_* and the number of strings in the map up to date.
+    // NOTE: Alphabetically sort the strings in the map -- we use a binary search!
+
+    // Archives or files that will hardly compress
+    const int MAX_EXT1 = 14;
+    const char* const ext1[MAX_EXT1] = {
+        "7z", "bin", "deb", "exe", "gz", "gz2", "jar", "rar", "rpm", "tar", "tgz", "z", "zip",
+        0 // # MAX_EXT1
+    };
+
+    // Slow or usually large files that we should not spend to much time with
+    const int MAX_EXT2 = 24;
+    const char* const ext2[MAX_EXT2] = {
+        "asf",
+        "avi",
+        "divx",
+        "doc",
+        "docx",
+        "flv",
+        "gif",
+        "iso",
+        "jpg",
+        "jpeg",
+        "mka",
+        "mkv",
+        "mp3",
+        "mp4",
+        "mpeg",
+        "mpg",
+        "odt",
+        "ogg",
+        "ogm",
+        "ra",
+        "rm",
+        "wma",
+        "wmv",
+        0 // # MAX_EXT2
+    };
+
+    // Files with high compression ratio
+    const int MAX_EXT3 = 28;
+    const char* const ext3[MAX_EXT3] = {
+        "asp", "bat", "c", "conf", "cpp", "cpp", "css", "csv", "cxx", "h", "hpp", "htm", "html", "hxx",
+        "ini", "js", "php", "pl", "py", "rtf", "sh", "tsv", "txt", "vb", "vbs", "xml", "xst",
+        0 // # MAX_EXT3
+    };
+
+    const char* const* map = ext1;
+    if (hasExtension(ext, map, MAX_EXT1))
+        return Zip::Store;
+
+    map = ext2;
+    if (hasExtension(ext, map, MAX_EXT2))
+        return Zip::Deflate2;
+
+    map = ext3;
+    if (hasExtension(ext, map, MAX_EXT3))
+        return Zip::Deflate9;
+
     return Zip::Deflate5;
 }
 
