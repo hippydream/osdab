@@ -49,6 +49,8 @@
 */
 // #define OSDAB_ZIP_NO_PNG_RLE
 
+#define OSDAB_ZIP_NO_DEBUG
+
 //! Local header size (including signature, excluding variable length fields)
 #define ZIP_LOCAL_HEADER_SIZE 30
 //! Encryption header size
@@ -553,26 +555,13 @@ Zip::ErrorCode ZipPrivate::addFiles(const QStringList& files, const QString& roo
 
 //! \internal \p file must be a file and not a directory.
 Zip::ErrorCode ZipPrivate::deflateFile(const QFileInfo& fileInfo,
-    quint32& crc, qint64& written, Zip::CompressionLevel& level, quint32** keys)
+    quint32& crc, qint64& written, const Zip::CompressionLevel& level, quint32** keys)
 {
     const QString path = fileInfo.absoluteFilePath();
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
         qDebug() << QString("An error occurred while opening %1").arg(path);
         return Zip::OpenFailed;
-    }
-
-    switch (level) {
-    case Zip::AutoCPU:
-        level = Zip::Deflate5;
-        break;
-    case Zip::AutoMIME:
-        level = detectCompressionByMime(fileInfo.completeSuffix().toLower());
-        break;
-    case Zip::AutoFull:
-        level = detectCompressionByMime(fileInfo.completeSuffix().toLower());
-        break;
-    default: ;
     }
 
     const Zip::ErrorCode ec = (level == Zip::Store)
@@ -625,7 +614,7 @@ int ZipPrivate::compressionStrategy(const QString& path, QIODevice& file) const
 
 //! \internal
 Zip::ErrorCode ZipPrivate::compressFile(const QString& path, QIODevice& file,
-    quint32& crc, qint64& totalWritten, Zip::CompressionLevel level, quint32** keys)
+    quint32& crc, qint64& totalWritten, const Zip::CompressionLevel& level, quint32** keys)
 {
     qint64 read = 0;
     qint64 written = 0;
@@ -729,19 +718,42 @@ Zip::ErrorCode ZipPrivate::compressFile(const QString& path, QIODevice& file,
 Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& root,
     Zip::CompressionLevel level)
 {
+    const bool dirOnly = file.isDir();
+
     // entryName contains the path as it should be written
     // in the zip file records
-    QString entryName = root;
+    const QString entryName = dirOnly
+        ? root
+        : root + file.fileName();
 
     // Directory entry
-    const bool dirOnly = file.isDir();
     if (dirOnly || file.size() < ZIP_COMPRESSION_THRESHOLD) {
 		level = Zip::Store;
+    } else {
+        switch (level) {
+        case Zip::AutoCPU:
+            level = Zip::Deflate5;
+#ifndef OSDAB_ZIP_NO_DEBUG
+            qDebug("Compression level for '%s': %d", entryName.toLatin1().constData(), (int)level);
+#endif
+            break;
+        case Zip::AutoMIME:
+            level = detectCompressionByMime(file.completeSuffix().toLower());
+#ifndef OSDAB_ZIP_NO_DEBUG
+            qDebug("Compression level for '%s': %d", entryName.toLatin1().constData(), (int)level);
+#endif
+            break;
+        case Zip::AutoFull:
+            level = detectCompressionByMime(file.completeSuffix().toLower());
+#ifndef OSDAB_ZIP_NO_DEBUG
+            qDebug("Compression level for '%s': %d", entryName.toLatin1().constData(), (int)level);
+#endif
+            break;
+        default: ;
+        }
     }
 
-    if (!dirOnly) {
-		entryName.append(file.fileName());
-    }
+
 
 	// create header and store it to write a central directory later
     QScopedPointer<ZipEntryP> h(new ZipEntryP);
@@ -769,6 +781,8 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 	h->modTime[0] |= t.second() / 2;
 
 	h->szUncomp = dirOnly ? 0 : file.size();
+
+    h->compMethod = (level == Zip::Store) ? 0 : 0x0008;
 
 	// **** Write local file header ****
 
@@ -884,8 +898,6 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
             return ec;
         Q_ASSERT(!h.isNull());
 	}
-
-    h->compMethod = (level == Zip::Store) ? 0 : 0x0008;
 
 	// Store end of entry offset
 	quint32 current = device->pos();
