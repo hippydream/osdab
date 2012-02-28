@@ -30,7 +30,7 @@
 #include "zipentry_p.h"
 
 // we only use this to seed the random number generator
-#include <time.h>
+#include <ctime>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDateTime>
@@ -951,7 +951,7 @@ Zip::ErrorCode ZipPrivate::createEntry(const QFileInfo& file, const QString& roo
 //! \internal
 int ZipPrivate::decryptByte(quint32 key2) const
 {
-	quint16 temp = ((quint16)(key2) & 0xffff) | 2;
+    quint16 temp = ((quint16)(key2) & 0xffff) | 2;
 	return (int)(((temp * (temp ^ 1)) >> 8) & 0xff);
 }
 
@@ -995,7 +995,7 @@ void ZipPrivate::encryptBytes(quint32* keys, char* buffer, qint64 read)
 {
 	char t;
 
-	for (int i = 0; i < (int)read; ++i) {
+    for (qint64 i = 0; i < read; ++i) {
 		t = buffer[i];
 		buffer[i] ^= decryptByte(keys[2]);
 		updateKeys(keys, t);
