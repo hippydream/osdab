@@ -112,9 +112,6 @@
 //! Do not store very small files as the compression headers overhead would be to big
 #define ZIP_COMPRESSION_THRESHOLD 60
 
-//! This macro updates a one-char-only CRC; it's the Info-Zip macro re-adapted
-#define CRC32(c, b) crcTable[((int)c^b) & 0xff] ^ (c >> 8)
-
 /*!
 	\class Zip zip.h
 
@@ -286,7 +283,7 @@ ZipPrivate::ZipPrivate() :
 {
 	// keep an unsigned pointer so we avoid to over bloat the code with casts
 	uBuffer = (unsigned char*) buffer1;
-	crcTable = (quint32*) get_crc_table();
+    crcTable = get_crc_table();
 }
 
 //! \internal
@@ -981,13 +978,19 @@ void ZipPrivate::initKeys(quint32* keys) const
 		updateKeys(keys, (int)ascii[i]);
 }
 
+//! Updates a one-char-only CRC; it's the Info-Zip macro re-adapted.
+quint32 ZipPrivate::updateChecksum(const quint32& crc, const quint32& val) const
+{
+    return quint32(crcTable[quint32(crc^val) & 0xff] ^ crc_t(crc >> 8));
+}
+
 //! \internal Updates encryption keys.
 void ZipPrivate::updateKeys(quint32* keys, int c) const
 {
-	keys[0] = CRC32(keys[0], c);
+    keys[0] = updateChecksum(keys[0], c);
 	keys[1] += keys[0] & 0xff;
 	keys[1] = keys[1] * 134775813L + 1;
-	keys[2] = CRC32(keys[2], ((int)keys[1]) >> 24);
+    keys[2] = updateChecksum(keys[2], ((int)keys[1]) >> 24);
 }
 
 //! \internal Encrypts a byte array.
@@ -1307,6 +1310,7 @@ void ZipPrivate::reset()
 //! \internal Returns the path of the parent directory
 QString ZipPrivate::extractRoot(const QString& p, Zip::CompressionOptions o)
 {
+    Q_UNUSED(o);
 	QDir d(QDir::cleanPath(p));
 	if (!d.exists())
 		return QString();

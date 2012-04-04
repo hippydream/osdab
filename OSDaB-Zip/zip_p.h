@@ -59,6 +59,9 @@ class ZipPrivate : public QObject
     Q_OBJECT
 
 public:
+    // uLongf from zconf.h
+    typedef unsigned long crc_t;
+
 	ZipPrivate();
 	virtual ~ZipPrivate();
 
@@ -72,7 +75,7 @@ public:
 
 	unsigned char* uBuffer;
 
-	const quint32* crcTable;
+    const crc_t* crcTable;
 
 	QString comment;
 	QString password;
@@ -96,12 +99,14 @@ public:
         Zip::CompressionLevel level);
 	Zip::CompressionLevel detectCompressionByMime(const QString& ext);
 
+    inline quint32 updateChecksum(const quint32& crc, const quint32& val);
+
 	inline void encryptBytes(quint32* keys, char* buffer, qint64 read);
 
 	inline void setULong(quint32 v, char* buffer, unsigned int offset);
 	inline void updateKeys(quint32* keys, int c) const;
 	inline void initKeys(quint32* keys) const;
-	inline int decryptByte(quint32 key2) const;
+    inline int decryptByte(quint32 key2) const;
 
     inline QString extractRoot(const QString& p, Zip::CompressionOptions o);
 
