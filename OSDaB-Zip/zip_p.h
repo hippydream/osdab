@@ -99,7 +99,7 @@ public:
         Zip::CompressionLevel level);
 	Zip::CompressionLevel detectCompressionByMime(const QString& ext);
 
-    inline quint32 updateChecksum(const quint32& crc, const quint32& val);
+    inline quint32 updateChecksum(const quint32& crc, const quint32& val) const;
 
 	inline void encryptBytes(quint32* keys, char* buffer, qint64 read);
 
