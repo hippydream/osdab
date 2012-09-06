@@ -46,6 +46,8 @@
 #include <QtCore/QObject>
 #include <QtCore/QtGlobal>
 
+#include <zlib/zconf.h>
+
 /*!
 	zLib authors suggest using larger buffers (128K or 256K) for (de)compression (especially for inflate())
 	we use a 256K buffer here - if you want to use this code on a pre-iceage mainframe please change it ;)
@@ -60,7 +62,7 @@ class ZipPrivate : public QObject
 
 public:
     // uLongf from zconf.h
-    typedef unsigned long crc_t;
+    typedef uLongf crc_t;
 
 	ZipPrivate();
 	virtual ~ZipPrivate();
