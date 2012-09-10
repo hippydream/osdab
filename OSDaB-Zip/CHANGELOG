@@ -1,8 +1,9 @@
 Website: http://osdab.42cows.org/
 Google Code project page: http://code.google.com/p/osdab
 
-2012-09-06 - Use data type defined in zlib/zconf.h for CRC table pointer
-  (thanks to Paul Tarr for the bug report).
+2012-09-06 - Use data type defined in zlib/zconf.h for CRC table pointer;
+  silently attempt to create missing output directories (thanks to Paul Tarr 
+  for the bug reports).
 2012-04-04 - Fixed encryption routine on certain platforms (e.g. GNU Linux/GCC x64)
   (thanks to anunakin for the bug report).
 2012-01-31 - Regression: fixed setting of compression level flag in local zip 
