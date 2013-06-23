@@ -51,6 +51,7 @@ The following data types are NOT available if the QT_CORE_ONLY macro has been de
 
 history
 -------
+2013-06-23 - Replace QString::from|toAscii() with QString::from|toLatin1()
 2007-02-15 - Updated XmlWriter files to latest version.
 2007-01-28 - Major changes:
  - The class is a singleton now

@@ -1,6 +1,7 @@
 Website: http://osdab.42cows.org/
 Google Code project page: http://code.google.com/p/osdab
 
+2013-06-23 - Replace QString::from|toAscii() with QString::from|toLatin1().
 2012-09-06 - Use data type defined in zlib/zconf.h for CRC table pointer;
   silently attempt to create missing output directories (thanks to Paul Tarr 
   for the bug reports).

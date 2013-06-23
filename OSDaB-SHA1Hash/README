@@ -21,6 +21,7 @@ NO WARRANTY is given for this code. Use it at your own risk. It should always co
 
 history
 -------
+2013-06-23 - Replace QString::from|toAscii() with QString::from|toLatin1()
 2006-06-09 - Minor changes (documentation and binary compatibility). 
 2005-10-02 - Added some methods to hash byte arrays. 
 2005-09-30 - First public release.

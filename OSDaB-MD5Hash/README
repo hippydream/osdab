@@ -19,6 +19,7 @@ The class is based on the code written by Colin Plumb in 1993 (my understanding 
 
 history
 -------
+2013-06-23 - Replace QString::from|toAscii() with QString::from|toLatin1()
 2006-06-09 - Minor changes (documentation and binary compatibility)
 2005-10-02 - Added some methods to hash byte arrays
 2005-09-03 - First public release

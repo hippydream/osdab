@@ -19,6 +19,7 @@ Code is based on the original GPLed work by Dawit Alemayehu and Rik Hemsley (KDE
 
 history
 -------
+2013-06-23 - Replace QString::from|toAscii() with QString::from|toLatin1()
 2006-06-09 - Minor changes (documentation and binary compatibility)
 2005-09-30 - First public release
 
