@@ -56,7 +56,7 @@ int main(int argc, char** args)
 
 	QFileInfo fi(file);
 
-	cout << hash.toAscii().data() << "  " << fi.absoluteFilePath().toAscii().data() << endl;
+	cout << hash.toLatin1().data() << "  " << fi.absoluteFilePath().toLatin1().data() << endl;
 
 	return 0;
 }

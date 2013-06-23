@@ -167,14 +167,14 @@ bool decompress(const QString& file, const QString& out, const QString& pwd)
 	ec = uz.openArchive(file);
 	if (ec != UnZip::Ok)
 	{
-		cout << "Failed to open archive: " << uz.formatError(ec).toAscii().data() << endl << endl;
+		cout << "Failed to open archive: " << uz.formatError(ec).toLatin1().data() << endl << endl;
 		return false;
 	}
 
 	ec = uz.extractAll(out);
 	if (ec != UnZip::Ok)
 	{
-		cout << "Extraction failed: " << uz.formatError(ec).toAscii().data() << endl << endl;
+		cout << "Extraction failed: " << uz.formatError(ec).toLatin1().data() << endl << endl;
 		uz.closeArchive();
 		return false;
 	}
@@ -197,7 +197,7 @@ bool compress(const QString& zip, const QString& dir, const QString& pwd)
 	ec = uz.createArchive(zip);
 	if (ec != Zip::Ok)
 	{
-		cout << "Unable to create archive: " << uz.formatError(ec).toAscii().data() << endl << endl;
+		cout << "Unable to create archive: " << uz.formatError(ec).toLatin1().data() << endl << endl;
 		return false;
 	}
 
@@ -205,14 +205,14 @@ bool compress(const QString& zip, const QString& dir, const QString& pwd)
 	ec = uz.addDirectory(dir);
 	if (ec != Zip::Ok)
 	{
-		cout << "Unable to add directory: " << uz.formatError(ec).toAscii().data() << endl << endl;
+		cout << "Unable to add directory: " << uz.formatError(ec).toLatin1().data() << endl << endl;
 	}
 
 	uz.setArchiveComment("This archive has been created using OSDaB Zip (http://osdab.sourceforge.net/).");
 
 	if (uz.closeArchive() != Zip::Ok)
 	{
-		cout << "Unable to close the archive: " << uz.formatError(ec).toAscii().data() << endl << endl;
+		cout << "Unable to close the archive: " << uz.formatError(ec).toLatin1().data() << endl << endl;
 	}
 
 	return ec == Zip::Ok;
@@ -235,13 +235,13 @@ bool listFiles(const QString& file, const QString& pwd)
 	ec = uz.openArchive(file);
 	if (ec != UnZip::Ok)
 	{
-		cout << "Unable to open archive: " << uz.formatError(ec).toAscii().data() << endl << endl;
+		cout << "Unable to open archive: " << uz.formatError(ec).toLatin1().data() << endl << endl;
 		return false;
 	}
 
 	QString comment = uz.archiveComment();
 	if (!comment.isEmpty())
-		cout << "Archive comment: " << comment.toAscii().data() << endl << endl;
+		cout << "Archive comment: " << comment.toLatin1().data() << endl << endl;
 
 	QList<UnZip::ZipEntry> list = uz.entryList();
 	if (list.isEmpty())
@@ -277,7 +277,7 @@ bool listFiles(const QString& file, const QString& pwd)
 			if (entry.encrypted)
 				file.append("*");
 
-			cout << setw(40) << file.toAscii().data() << setw(10) << entry.uncompressedSize << setw(10) << ratioS.toAscii().data() << setw(10) << crc.toAscii().data() << endl;
+			cout << setw(40) << file.toLatin1().data() << setw(10) << entry.uncompressedSize << setw(10) << ratioS.toLatin1().data() << setw(10) << crc.toLatin1().data() << endl;
 		}
 	}
 

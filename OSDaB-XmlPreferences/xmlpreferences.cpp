@@ -153,7 +153,7 @@ bool XmlPreferences::load(const QString& filename)
 {
 	d->lastErrorCode = NoError;
 
-	xmlDocPtr doc = xmlParseFile(filename.toAscii().data());
+	xmlDocPtr doc = xmlParseFile(filename.toLatin1().data());
 	if (doc == 0)
 		return false;
 

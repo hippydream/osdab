@@ -145,7 +145,7 @@ void TestBase64::encode()
 	QString txt = Base64::encode(in,mCB_Crop->isChecked());
 
 	QDataStream out(&file);
-	QByteArray bo = txt.toAscii().data();
+	QByteArray bo = txt.toLatin1().data();
 	out.writeRawData(bo, bo.size());
 	out.unsetDevice();
 	file.close();

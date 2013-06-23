@@ -57,7 +57,7 @@ int main(int, char**)
 
 	if (!s.save("config.xml"))
 	{
-		cout << "Failed! Reason: " << s.lastErrorString().toAscii().data();
+		cout << "Failed! Reason: " << s.lastErrorString().toLatin1().data();
 		return -1;
 	}
 	
@@ -68,7 +68,7 @@ int main(int, char**)
 
 	if (!s.load("config.xml"))
 	{
-		cout << "Failed! Reason: " << s.lastErrorString().toAscii().data();
+		cout << "Failed! Reason: " << s.lastErrorString().toLatin1().data();
 		return -1;
 	}
 

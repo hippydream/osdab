@@ -102,7 +102,7 @@ QByteArray Base64::decode(const QString& encoded)
 	unsigned int len = encoded.length(); // num. of chars we need to decode
 
 	// for faster access to chars we need to decode
-	QByteArray in = encoded.toAscii();
+	QByteArray in = encoded.toLatin1();
 
 	const char* data = in.data();
 

@@ -1004,7 +1004,7 @@ void UnzipPrivate::initKeys(const QString& pwd, quint32* keys) const
     keys[1] = 591751049L;
     keys[2] = 878082192L;
 
-    QByteArray pwdBytes = pwd.toAscii();
+    QByteArray pwdBytes = pwd.toLatin1();
     int sz = pwdBytes.size();
     const char* ascii = pwdBytes.data();
 
