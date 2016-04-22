@@ -1,13 +1,13 @@
 The XmlWriter related files are 
-Copyright (C) 2007 Angius Fabrizio (blue_death@users.sourceforge.net)
+Copyright (C) 2007-2016 Angius Fabrizio (hippydream@42cows.org)
 
 You may use, distribute and copy the files under the terms of
-GNU General Public License version 2 (see the file LICENSE.GPL for details)
+GNU General Public License version 3 (see the file LICENSE.GPL for details)
 
 -------------------------------------------------------------------------
 
-Website: http://osdab.sourceforge.net/
-SourceForge.net project page: https://sourceforge.net/projects/osdab/
+Website: http://osdab.42cows.org/
+GitHub project page: https://github.com/hippydream/osdab/
 
 **************** ******* ******************************************************
 
@@ -19,6 +19,7 @@ this class may do it. Creating basic XML documents is really easy.
 
 history
 -------
+2016-04-22 - License changed to GPLv3; update metadata
 2007-02-15 - GCC build issues solved.
 2007-01-28 - Minor API changes.
 2005-06-09 - Minor API changes and better binary compatibility.
@@ -39,6 +40,6 @@ requirements
 Qt version 4.0.x or later
 
 
-**************** ******* ******************************************************
-BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
-**************** ******* ******************************************************
+**************** ******* *******************************************************
+BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT OSDAB.42COWS.ORG
+**************** ******* *******************************************************

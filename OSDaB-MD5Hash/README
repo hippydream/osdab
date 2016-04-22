@@ -1,13 +1,13 @@
 The MD5Hash related files are 
-Copyright (C) 2007 Angius Fabrizio (blue_death@users.sourceforge.net)
+Copyright (C) 2007-2016 Angius Fabrizio (hippydream@42cows.org)
 
 You may use, distribute and copy the files under the terms of
-GNU General Public License version 2 (see the file LICENSE.GPL for details)
+GNU General Public License version 3 (see the file LICENSE.GPL for details)
 
 -------------------------------------------------------------------------
 
-Website: http://osdab.sourceforge.net/
-SourceForge.net project page: https://sourceforge.net/projects/osdab/
+Website: http://osdab.42cows.org/
+GitHub project page: https://github.com/hippydream/osdab/
 
 **************** ******* ******************************************************
 
@@ -19,6 +19,7 @@ The class is based on the code written by Colin Plumb in 1993 (my understanding 
 
 history
 -------
+2016-04-22 - License changed to GPLv3; update metadata
 2013-06-23 - Replace QString::from|toAscii() with QString::from|toLatin1()
 2006-06-09 - Minor changes (documentation and binary compatibility)
 2005-10-02 - Added some methods to hash byte arrays
@@ -37,7 +38,7 @@ requirements
 Qt version 4.0.x or later
 
 
-**************** ******* ******************************************************
-BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
-**************** ******* ******************************************************
+**************** ******* *******************************************************
+BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT OSDAB.42COWS.ORG
+**************** ******* *******************************************************
 

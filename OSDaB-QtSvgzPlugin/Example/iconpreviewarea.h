@@ -1,14 +1,14 @@
 /**************************************************************************
 ** Filename: iconpreviewarea.h
 **
-** Copyright (C) 2007 Angius Fabrizio. All rights reserved.
+** Copyright (C) 2007-2016 Angius Fabrizio. All rights reserved.
 ** Based on the "icons" example bundled with Qt 4
 **   Copyright (C) 2005-2007 Trolltech ASA. All rights reserved.
 **
-** This file is part of the OSDaB project (http://osdab.sourceforge.net/).
+** This file is part of the OSDaB project (http://osdab.42cows.org/).
 **
 ** This file may be distributed and/or modified under the terms of the
-** GNU General Public License version 2 as published by the Free Software
+** GNU General Public License version 3 as published by the Free Software
 ** Foundation and appearing in the file LICENSE.GPL included in the
 ** packaging of this file.
 **
@@ -16,7 +16,7 @@
 ** WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 **
 ** See the file LICENSE.GPL that came with this software distribution or
-** visit http://www.gnu.org/copyleft/gpl.html for GPL licensing information.
+** visit http://www.gnu.org/licenses/gpl-3.0.en.html for GPL licensing information.
 **
 **************************************************************************/
 

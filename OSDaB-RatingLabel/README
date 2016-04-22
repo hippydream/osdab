@@ -1,13 +1,13 @@
 The RatingLabel related files are 
-Copyright (C) 2007 Angius Fabrizio (blue_death@users.sourceforge.net)
+Copyright (C) 2007-2016 Angius Fabrizio (hippydream@42cows.org)
 
 You may use, distribute and copy the files under the terms of
-GNU General Public License version 2 (see the file LICENSE.GPL for details)
+GNU General Public License version 3 (see the file LICENSE.GPL for details)
 
 -------------------------------------------------------------------------
 
-Website: http://osdab.sourceforge.net/
-SourceForge.net project page: https://sourceforge.net/projects/osdab/
+Website: http://osdab.42cows.org/
+GitHub project page: https://github.com/hippydream/osdab/
 
 **************** ******* ******************************************************
 
@@ -18,6 +18,7 @@ Weird description, I know.. the screenshot below should be better :)
 
 history
 -------
+2016-04-22 - License changed to GPLv3; update metadata
 2007-03-01 - Minor layout related bug fixes; added hovered(int) signal; new example app.
 2007-02-16 - Major update: the widget allows direct mouse interaction now.
 2006-06-09 - Minor changes (documentation and binary compatibility).
@@ -32,7 +33,6 @@ requirements
 Qt version 4.0.x or later
 
 
-**************** ******* ******************************************************
-BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT SOURCEFORGE.NET
-**************** ******* ******************************************************
-
+**************** ******* *******************************************************
+BEFORE SENDING ANY EMAIL, CHECK OUT THE OSDAB WEBSITE HOSTED AT OSDAB.42COWS.ORG
+**************** ******* *******************************************************

@@ -1,6 +1,7 @@
 Website: http://osdab.42cows.org/
-Google Code project page: http://code.google.com/p/osdab
+GitHub project page: https://github.com/hippydream/osdab
 
+2016-04-22 - Update license to GPLv3
 2013-06-23 - Replace QString::from|toAscii() with QString::from|toLatin1().
 2012-09-06 - Use data type defined in zlib/zconf.h for CRC table pointer;
   silently attempt to create missing output directories (thanks to Paul Tarr 
